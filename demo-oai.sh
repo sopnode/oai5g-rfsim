@@ -7,27 +7,34 @@ OAI5G_RAN="$OAI5G_CHARTS"/oai-5g-ran
 
 
 #Default namespace
-ns="oai5g"
+#ns="oai5g"
 
 function usage() {
-    echo "USAGE: `basename "$0"` start|stop"
-    echo "This scripts launches the oai5g pods on namespace $ns over the Sopnode platform"
-    echo "Requirements: 4 R2lab FIT nodes attached to the k8s cluster: "
-    echo "  - oai-amf (fit01)"
-    echo "  - oai-spgwu-tiny (fit02)"
-    echo "  - oai-gnb (fit03)"
-    echo "  - oai-nr-ue (fit09)"
+    echo "USAGE: `basename "$0"` start namespace fit_amf fit_spgwu fit_gnb fit_ue | stop namespace"
+    echo "This scripts launches the OAI5G pods on namespace $ns over the Sopnode platform"
+    echo "Requirements: 4 R2lab FIT nodes attached to the k8s cluster to run the following pods: "
+    echo "  - oai-amf"
+    echo "  - oai-spgwu-tiny"
+    echo "  - oai-gnb"
+    echo "  - oai-nr-ue"
     exit 1
 }
 
 function start() {
+    ns=$1; shift
+    fit_amf=$1; shift
+    fit_spgwu=$1; shift
+    fit_gnb=$1; shift
+    fit_ue=$1; shift
+
+    echo "Running start() with namespace: $ns, fit_amf:$fit_amf, fit_spgwu:$fit_spgwu, fit_gnb:$fit_gnb, fit_ue:$fit_ue"
 
     # Ensure that helm spray plugin is installed
     helm plugin install https://github.com/ThalesGroup/helm-spray
 
     # Check if all FIT nodes are ready
     while : ; do
-	kubectl wait no --for=condition=Ready fit01 fit02 fit03 fit09 && break
+	kubectl wait no --for=condition=Ready $fit_amf $fit_spgwu $fit_gnb $fit_ue && break
 	clear;
 	echo "Wait until all FIT nodes are in READY state"; kubectl get no
 	sleep 5
@@ -43,12 +50,12 @@ function start() {
     helm dependency update
 
     echo "helm --namespace=$ns spray ."
-    helm --namespace=$ns spray .
+    helm --create-namespace --namespace=$ns spray .
 
     echo "Wait until all 5G Core pods are READY"
     kubectl wait pod -n$ns --for=condition=Ready --all
 
-    echo "Run the oai-gnb pod on fit03"
+    echo "Run the oai-gnb pod on $fit_gnb"
     echo "cd $OAI5G_RAN"
     cd "$OAI5G_RAN"
 
@@ -58,7 +65,7 @@ function start() {
     echo "Wait until the gNB pod is READY"
     kubectl wait pod -n$ns --for=condition=Ready --all
 
-    echo "Run the oai-nr-ue pod on fit09"
+    echo "Run the oai-nr-ue pod on $fit_ue"
 
     # Retrieve the IP address of the gnb pod and set it 
     GNB_POD_NAME=$(kubectl -n$ns get pods -l app.kubernetes.io/name=oai-gnb -o jsonpath="{.items[0].metadata.name}")
@@ -77,7 +84,7 @@ EOF
     echo "helm --namespace=$ns install oai-nr-ue oai-nr-ue/"
     helm --namespace=$ns install oai-nr-ue oai-nr-ue/
 
-    echo "Wait until the NR-UE pod is READY"
+    echo "Wait until oai-nr-ue pod is READY"
     kubectl wait pod -n$ns --for=condition=Ready --all
 
     UE_POD_NAME=$(kubectl -n$ns get pods -l app.kubernetes.io/name=oai-nr-ue -o jsonpath="{.items[0].metadata.name}")
@@ -89,11 +96,15 @@ EOF
 }
 
 function stop() {
-    n=`helm -n $ns ls | wc -l`
-    if test $n -gt 1
+    ns=$1; shift
+
+    echo "Running stop() on namespace:$ns"
+
+    res=`helm -n $ns ls | wc -l`
+    if test $res -gt 1
     then
 	echo "Remove all 5G OAI pods"
-	echo 'helm -n $ns ls --short --all | xargs -L1 helm --namespace $ns delete'
+	echo "helm -n $ns ls --short --all | xargs -L1 helm --namespace $ns delete"
 	helm -n $ns ls --short --all | xargs -L1 helm --namespace $ns delete 
 	kubectl wait -n $ns --for=delete pod mysql
 	kubectl wait -n $ns --for=delete pod oai-amf
@@ -106,20 +117,30 @@ function stop() {
 	kubectl wait -n $ns --for=delete pod oai-gnb
 	kubectl wait -n $ns --for=delete pod oai-nr-ue
     else
-	echo "`basename "$0"` is not running, there is no pod on namespace $ns !"
+	echo "OAI5G demo is not running, there is no pod on namespace $ns !"
     fi
 }
 
-if test $# -ne 1
+if test $# -lt 1
 then
     usage
 else
     if [ "$1" == "start" ]
     then
-	start
+	if test $# -eq 6
+	then
+	    start $2 $3 $4 $5 $6
+	else
+	    usage
+	fi
     elif [ "$1" == "stop" ]
     then
-	stop
+	if test $# -eq 2
+	then
+	    stop $2
+	else
+	    usage
+	fi
     else
 	usage
     fi

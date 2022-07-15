@@ -18,6 +18,8 @@ OAI5G_BASIC="$OAI5G_CORE"/oai-5g-basic
 OAI5G_RAN="$OAI5G_CHARTS"/oai-5g-ran
 
 function configure-oai-5g-basic() {
+    fit_amf=$1; shift
+    fit_spgwu=$1; shift 
 
     echo "Configuring chart $OAI5G_BASIC/values.yaml for R2lab"
     cat > /tmp/basic-r2lab.sed <<EOF
@@ -35,16 +37,15 @@ s|sgwS1uIf: "eth0"  # n3 interface, net1 if gNB is outside the cluster network a
 s|pgwSgiIf: "eth0"  # net1 if gNB is outside the cluster network and multus creation is true else eth0 (important because it sends the traffic towards internet)|pgwSgiIf: "net1"  # net1 if gNB is outside the cluster network and multus creation is true else eth0 (important because it sends the traffic towards internet)|
 s|dnsIpv4Address: "172.21.3.100" # configure the dns for UE don't use Kubernetes DNS|dnsIpv4Address: "138.96.0.210" # configure the dns for UE don't use Kubernetes DNS|
 s|dnsSecIpv4Address: "172.21.3.100" # configure the dns for UE don't use Kubernetes DNS|dnsSecIpv4Address: "193.51.196.138" # configure the dns for UE don't use Kubernetes DNS|
-/nodeSelector: {}$/ {
-     N
-     s/nodeSelector: {}\noai-spgwu-tiny:/nodeName: "fit01"\n  nodeSelector: {}\noai-spgwu-tiny:/
-     s/nodeSelector: {}\noai-smf:/nodeName: "fit02"\n  nodeSelector: {}\noai-smf:/
-}
 EOF
 
     cp "$OAI5G_BASIC"/values.yaml /tmp/basic_values.yaml-orig
     echo "(Over)writing $OAI5G_BASIC/values.yaml"
     sed -f /tmp/basic-r2lab.sed < /tmp/basic_values.yaml-orig > "$OAI5G_BASIC"/values.yaml
+    perl -i -p0e "s/nodeSelector: \{\}\noai-spgwu-tiny:/nodeName: \"$fit_amf\"\\n  nodeSelector: \{\}\noai-spgwu-tiny:/s" "$OAI5G_BASIC"/values.yaml
+    perl -i -p0e "s/nodeSelector: \{\}\noai-smf:/nodeName: \"$fit_spgwu\"\n  nodeSelector: \{\}\noai-smf:/s" "$OAI5G_BASIC"/values.yaml
+
+
     diff /tmp/basic_values.yaml-orig "$OAI5G_BASIC"/values.yaml
 }
 
@@ -127,7 +128,8 @@ function configure-spgwu-tiny() {
 }
 
 function configure-gnb() {
-
+    fit_gnb=$1; shift
+    
     FUNCTION="oai-gnb"
     DIR="$OAI5G_RAN/$FUNCTION"
     ORIG_CHART="$DIR"/values.yaml
@@ -146,7 +148,7 @@ s|gnbNgaIfName:.*|gnbNgaIfName: "net1"  # net1 in case multus create is true tha
 s|gnbNgaIpAddress:.*|gnbNgaIpAddress: "n2IPadd" # n2IPadd in case multus create is true|
 s|gnbNguIfName:.*|gnbNguIfName: "net2"   #net2 in case multus create is true gtu interface for upf/spgwu|
 s|gnbNguIpAddress:.*|gnbNguIpAddress: "n3IPadd" # n3IPadd in case multus create is true|
-s|nodeName:.*|nodeName: fit03|
+s|nodeName:.*|nodeName: $fit_gnb|
 EOF
 
     cp "$ORIG_CHART" /tmp/"$FUNCTION"_values.yaml-orig
@@ -163,7 +165,8 @@ EOF
 }
 
 function configure-oai-nr-ue() {
-
+    fit_ue=$1; shift
+    
     FUNCTION="oai-nr-ue"
     DIR="$OAI5G_RAN/$FUNCTION"
     ORIG_CHART="$DIR"/values.yaml
@@ -174,7 +177,7 @@ s|create: false|create: true|
 s|ipadd:.*|ipadd: "192.168.2.209" # interface needed to connect with gnb|
 s|netmask:.*|netmask: "24"|
 s|hostInterface:.*|hostInterface: "enp0s25" # data Interface of the fit machine on which this pod will be scheduled|
-s|nodeName:.*|nodeName: fit09|
+s|nodeName:.*|nodeName: $fit_ue|
 EOF
 
     cp "$ORIG_CHART" /tmp/"$FUNCTION"_values.yaml-orig
@@ -192,11 +195,34 @@ EOF
 
 
 ########################################
-echo "Uncomment all the commands at the end of the script to configure the whole charts"
-configure-oai-5g-basic
-configure-mysql
-configure-amf
-configure-spgwu-tiny
-configure-gnb
-configure-oai-nr-ue
-exit 0
+
+function usage() {
+    echo "USAGE: `basename "$0"` fit_amf fit_spgwu fit_gnb fit_ue"
+    echo "Applying SopNode patches to OAI5G located on "$HOME"/oai-cn5g-fed"
+    echo -e "\t with oai-amf running on fit_amf"
+    echo -e "\t with oai-spgwu-tiny running on fit_spgwu"
+    echo -e "\t with oai-gnb running on fit_gnb"
+    echo -e "\t with oai-nr-ue running on fit_ue"
+    exit 1
+}
+
+# main
+
+if test $# -ne 4
+then
+    usage
+else
+    echo "`basename "$0"`: Applying SopNode patches to OAI5G located on "$HOME"/oai-cn5g-fed"
+    echo -e "\t with oai-amf running on $1"
+    echo -e "\t with oai-spgwu-tiny running on $2"
+    echo -e "\t with oai-gnb running on $3"
+    echo -e "\t with oai-nr-ue running on $4"
+
+    configure-oai-5g-basic $1 $2
+    configure-mysql
+    configure-amf
+    configure-spgwu-tiny
+    configure-gnb $3
+    configure-oai-nr-ue $4
+    exit 0
+fi

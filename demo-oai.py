@@ -1,14 +1,11 @@
 #!/usr/bin/env python3 -u
 
 """
-a demo script that prepares 4 fit R2lab nodes to join a sopnode k8s cluster for the oai5g demo.
+This script prepares 4 fit R2lab nodes to join a sopnode k8s cluster for the oai5g demo.
+Then, it clones the oai5g-rfsim git directory on one of the 4 fit nodes and applies
+different patches on the various OAI5G charts to make them run on the SopNode platform.
+Finally, it deploys the different OAI5G pods through the same fit node.
 
-This relies on
-* the 'kubernetes' image, that comes with k8s installed
-* the 'kube-install.sh' script, that is installed as well on that image in /usr/bin
-
-although not illustrated in this simple script,
-the latter can be upgraded with "git -C /root/kube-install pull"
 """
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
@@ -41,25 +38,25 @@ default_ue = 9
 
 default_gateway  = 'faraday.inria.fr'
 default_slicename  = 'inria_sopnode'
+default_namespace = 'oai5g'
 
 def run(*, gateway, slicename,
-        master,
+        master, namespace,
         amf, spgwu, gnb, ue,
         image, load_images,
         verbose, dry_run ):
     """
-    add R2lab nodes as workers in a k8s cluster
+    run the OAI5G demo on the k8s cluster
 
     Arguments:
         slicename: the Unix login name (slice name) to enter the gateway
-        quectel_nodes: list of indices of quectel UE nodes to use
-        phones: list of indices of phones to use
-        nodes: a list of node ids to run the scenario on; strings or ints
-                  are OK;
-        node_master: the master node id, must be part of selected nodes
-        node_enb: the node id for the enb, which is connected to usrp/duplexer
-        disaggregated_cn: Boolean; True for the disaggregated CN scenario. False for all-in-one CN.
-        operator_version: str, either "none" or "v1" or "v2".
+        master: k8s master host
+        amf: FIT node number in which oai-amf will be deployed
+        spgwu: FIT node number in which spgwu-tiny will be deployed
+        gnb: FIT node number in which oai-gnb will be deployed
+        ue: FIT node number in which oai-nr-ue will be deployed
+        image: R2lab k8s image name
+        load_images: flag if k8s images will be loaded on FIT nodes
     """
 
     faraday = SshNode(hostname=gateway, username=slicename,
@@ -162,8 +159,11 @@ def run(*, gateway, slicename,
             label=f"Clone oai-cn5g-fed, apply patches and run the k8s demo-oai script from {r2lab_hostname(amf)}",
             command=[
                 Run("rm -rf oai-cn5g-fed; git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed"),
-                RunScript("config-oai5g-sopnode.sh"),
-                RunScript("demo-oai.sh", "start"),
+                RunScript("config-oai5g-sopnode.sh", r2lab_hostname(amf),
+                          r2lab_hostname(spgwu), r2lab_hostname(gnb),
+                          r2lab_hostname(ue)),
+                RunScript("demo-oai.sh", "start", namespace, r2lab_hostname(amf),
+                          r2lab_hostname(spgwu), r2lab_hostname(gnb), r2lab_hostname(ue)),
             ]
         )
     ]
@@ -189,7 +189,7 @@ def run(*, gateway, slicename,
 
 
 def delete_oai5g_pods(*, gateway, slicename,
-                      master, fitnode, 
+                      master, namespace, fitnode, 
                       verbose, dry_run ):
     """
     delete oai5g pods on the k8s cluster
@@ -230,7 +230,7 @@ def delete_oai5g_pods(*, gateway, slicename,
             verbose=verbose,
             label=f"Delete OAI5G pods by calling demo-oai.sh stop from {r2lab_hostname(fitnode)}",
             command=[
-                RunScript("demo-oai.sh", "stop"),
+                RunScript("demo-oai.sh", "stop", namespace),
             ]
         )
     ]
@@ -283,18 +283,25 @@ def main():
         help=f"kubernetes master node, default is {default_master}")
     
     parser.add_argument(
+        "--namespace", default=default_namespace,
+        help=f"k8s namespace in whcih AOI5G pods will run, default is {default_namespace}")
+    
+    parser.add_argument(
         "-s", "--slicename", default=default_slicename,
         help="slicename used to book FIT nodes, default is {default_slicename}")
 
     parser.add_argument("-l", "--load", dest='load_images',
                         action='store_true', default=False,
-                        help='load images as well'),
+                        help='load images as well')
+    
     parser.add_argument("-v", "--verbose", default=False,
                         action='store_true', dest='verbose',
                         help="run script in verbose mode")
+    
     parser.add_argument("-n", "--dry-runmode", default=False,
                         action='store_true', dest='dry_run',
                         help="only pretend to run, don't do anything")
+    
     parser.add_argument("--stop", default=False,
                         action='store_true', dest='stop',
                         help="stop the oai-demo")
@@ -304,10 +311,12 @@ def main():
 
     if args.stop:
         print(f"**** Running oai5g demo on k8s master {args.master}")
-        delete_oai5g_pods(gateway=default_gateway, slicename=args.slicename, master=args.master, fitnode=args.amf,
+        delete_oai5g_pods(gateway=default_gateway, slicename=args.slicename, master=args.master,
+                          namespace=args.namespace, fitnode=args.amf,
                           dry_run=args.dry_run, verbose=args.verbose)
     else:
         print(f"**** Running oai5g demo on k8s master {args.master} with {args.slicename} slicename")
+        print(f"OAI5G pods will run on the {args.namespace} k8s namespace")
         print(f"Following FIT nodes will be used:")
         print(f"\t{r2lab_hostname(args.amf)} for oai-amf")
         print(f"\t{r2lab_hostname(args.spgwu)} for oai-spgwu-tiny")
@@ -318,10 +327,10 @@ def main():
     
     
         run(gateway=default_gateway, slicename=args.slicename,
-            master=args.master, amf=args.amf, spgwu=args.spgwu,
-            gnb=args.gnb, ue=args.ue, dry_run=args.dry_run,
-            verbose=args.verbose, load_images=args.load_images,
-            image=args.image
+            master=args.master, namespace=args.namespace,
+            amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
+            dry_run=args.dry_run,verbose=args.verbose,
+            load_images=args.load_images, image=args.image
             )
 
 

@@ -7,10 +7,10 @@ using both FIT nodes on R2lab and classical k8s workers.
 
 In this demo, the **demo-oai.py** nepi-ng script is used to prepare 4 FIT nodes that will be used to run the following OAI5G functions developed at Eurecom:
 
-* oai-amf (fit01 by default)
-* oai-spgwu (fit02 by default)
-* oai-gnb (fit03 by default)
-* oai-nr-ue (fit04 by default)
+* oai-amf (*fit01* by default)
+* oai-spgwu (*fit02* by default)
+* oai-gnb (*fit03* by default)
+* oai-nr-ue (*fit04* by default)
 
 This demo does not involve radio transmission, the OAI5G RF simulator will be used instead.
 
@@ -40,28 +40,28 @@ Before you can run the script in this directory, make user to install its depend
 
 The **demo-oai.py** script optionally deploys a preconfigured Kubernetes (k8s) image on the following R2lab FIT nodes: 
 
-* fit01 for oai-amf 
-* fit02 for oai-spgwu 
-* fit03 for oai-gnb 
-* fit09 for oai-nr-ue 
+* *fit01* for oai-amf 
+* *fit02* for oai-spgwu 
+* *fit03* for oai-gnb 
+* *fit09* for oai-nr-ue 
 
-Then the script will configure the nodes to use the data interface used by [k8s Multus](https://github.com/k8snetworkplumbingwg/multus-cni) and it will make all the nodes join the k8s master (sopnode-l1.inria.fr by default).
+Then the script will configure the nodes to use the data interface used by [k8s Multus](https://github.com/k8snetworkplumbingwg/multus-cni) and it will make all the nodes join the k8s master (*sopnode-l1.inria.fr* by default).
 
 
-After that, the script will deploy OAI5G pods on the k8s cluster. To do that, it will use the k8s worker node in which the oai-amf pod will be deployed. 
+After that, the script will deploy OAI5G pods on the k8s cluster. To do that, it will use the k8s worker node in which the oai-amf pod will be deployed, which is *fit01* by default. 
 
-In a nutshell, the script will clone the OAI5G oai-cn5g-fed git directory on the FIT node fit01. To do it manually, you will have to run:
+In a nutshell, the script will clone the OAI5G oai-cn5g-fed git directory on the FIT node *fit01*. To do it manually, you will have to run:
 
 ```
 root@fit01# git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed
 ``` 
-Then it will apply different patches to configure the various OAI5G pods for the SopNode platform. To do it manually, you will have to run on fit01:
+Then it will apply different patches to configure the various OAI5G pods for the SopNode platform. To do it manually, you will have to run on *fit01* :
 
 ```
 root@fit01# ./config-oai5g-sopnode.sh
 ```
 
-Finally, the **demo-oai.py** script will deploy the OAI5G pods on the k8s cluster. However, if you prefer to do it manually, you will have to do the following directly on fit01 (or on another k8s worker node or on the k8s master):
+Finally, the **demo-oai.py** script will deploy the OAI5G pods on the k8s cluster. However, if you prefer to do it manually, you will have to do the following directly on *fit01* (or on another k8s worker node or on the k8s master *sopnode-l1*):
 
 
 ```bash
@@ -146,7 +146,7 @@ sopnode-l1$ kubectl -noai5g logs $UE_POD_NAME -c nr-ue
 
 ### Cleanup
 
-To clean up all OAI5G pods, you can run on your laptop ``./demo-oai.py --stop` or run the following command directly on the k8s cluster:
+To clean up all OAI5G pods, you can run on your laptop ``./demo-oai.py --stop`` or to run the following command directly on the k8s cluster:
 
 ```bash 
 sopnode-l1$ helm --namespace oai5g ls --short --all | xargs -L1 helm --namespace oai5g delete
