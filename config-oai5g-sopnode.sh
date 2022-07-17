@@ -31,7 +31,7 @@ s|amfInterfaceNameForNGAP: "eth0" # If multus creation is true then net1 else et
 s|mnc: "99"|mnc: "95"|
 s|servedGuamiMnc0: "99"|servedGuamiMnc0: "95"|
 s|plmnSupportMnc: "99"|plmnSupportMnc: "95"|
-s|n3IPadd:.*|n1IPadd: "192.168.2.202"|
+s|n3IPadd:.*|n3IPadd: "192.168.2.202"|
 s|n3Netmask:.*|n1Netmask: "24"|
 s|sgwS1uIf: "eth0"  # n3 interface, net1 if gNB is outside the cluster network and multus creation is true else eth0|sgwS1uIf: "net1"  # n3 interface, net1 if gNB is outside the cluster network and multus creation is true else eth0|
 s|pgwSgiIf: "eth0"  # net1 if gNB is outside the cluster network and multus creation is true else eth0 (important because it sends the traffic towards internet)|pgwSgiIf: "net1"  # net1 if gNB is outside the cluster network and multus creation is true else eth0 (important because it sends the traffic towards internet)|
