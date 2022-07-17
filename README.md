@@ -61,6 +61,10 @@ Then it will apply different patches to configure the various OAI5G pods for the
 root@fit01# ./config-oai5g-sopnode.sh
 ```
 
+These patches include configuration of Multus CNI interfaces specific to the SophiaNode platform. See the IP address configuration in the following figure modified from the [OAI 5G Core Network Deployment using Helm Charts](https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed/-/blob/master/docs/DEPLOY_SA5G_HC.md) tutorial.
+
+![Multus CNI Configuration](./helm-chart-basic-cni.png)
+
 Finally, the **demo-oai.py** script will deploy the OAI5G pods on the k8s cluster. However, if you prefer to do it manually, you will have to do the following directly on *fit01* (or on another k8s worker node or on the k8s master *sopnode-l1*):
 
 
