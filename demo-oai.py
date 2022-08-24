@@ -310,7 +310,7 @@ def main():
     args = parser.parse_args()
 
     if args.stop:
-        print(f"**** Running oai5g demo on k8s master {args.master}")
+        print(f"**** Delete all pods of the  oai5g demo on k8s master {args.master}")
         delete_oai5g_pods(gateway=default_gateway, slicename=args.slicename, master=args.master,
                           namespace=args.namespace, fitnode=args.amf,
                           dry_run=args.dry_run, verbose=args.verbose)

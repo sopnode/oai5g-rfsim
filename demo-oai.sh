@@ -11,8 +11,8 @@ OAI5G_RAN="$OAI5G_CHARTS"/oai-5g-ran
 
 function usage() {
     echo "USAGE: `basename "$0"` start namespace fit_amf fit_spgwu fit_gnb fit_ue | stop namespace"
-    echo "This scripts launches the OAI5G pods on namespace $ns over the Sopnode platform"
-    echo "Requirements: 4 R2lab FIT nodes attached to the k8s cluster to run the following pods: "
+    echo "This scripts launches/deletes the OAI5G pods on namespace $ns over the Sopnode platform"
+    echo "Requirements: 4 R2lab FIT nodes already attached to the k8s cluster to run the following pods: "
     echo "  - oai-amf"
     echo "  - oai-spgwu-tiny"
     echo "  - oai-gnb"
@@ -40,6 +40,9 @@ function start() {
 	sleep 5
     done
     kubectl get no
+
+    # Remove pulling limitations from docker-hub with anonymous account 
+    kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=DUMMY_name --docker-password=DUMMY_pwd --docker-email=DUMMY_email
 
     echo "Run the OAI 5G Core pods"
 
