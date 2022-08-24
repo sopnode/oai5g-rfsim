@@ -18,7 +18,6 @@ This demo does not involve radio transmission, the OAI5G RF simulator will be us
 **Acknowledgments:** _Support regarding configuration of the OAI5G functions has been provided by
 Sagar Arora at Eurecom <sagar.arora@eurecom.fr>._
 
-**WARNING:** Currently, the k8s sopnode-l1 cluster has some issues related to DNS, which makes a few pods crash periodically. Hopefully, this will be fixed soon.
 
 ### Software dependencies
 
@@ -31,7 +30,7 @@ Before you can run the script in this directory, make user to install its depend
 * [OAI 5G Core Network Deployment using Helm Charts](https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed/-/blob/master/docs/DEPLOY_SA5G_HC.md)
 * [R2lab welcome page](https://r2lab.inria.fr/)
 * [R2lab run page (requires login)](https://r2lab.inria.fr/run.md)
-* [github repo for this page](https://github.com/fit-r2lab/r2lab-demos)
+* [github repo for this page](https://github.com/sopnode/oai5g-rfsim)
 
 
 ## The different steps...
@@ -126,6 +125,8 @@ $ ./demo-oai.py -l -s inria_sc
 
 
 ### Testing
+
+At the end of the demo, few logs of the oai-nr-ue pod should be visible on the terminal and you can verify that the connection is fine with the gNB.
 
 To check logs of the different pods, you need first to log on one of the k8s workers or master nodes, e.g., *fit01* or *sopnode-l1.inria.fr*.
 
