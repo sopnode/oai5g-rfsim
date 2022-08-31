@@ -20,6 +20,17 @@ function usage() {
     exit 1
 }
 
+function init() {
+    # Following should be done once per demo.
+
+    echo "init: ensure spray is installed and possibly create secret docker-registry"
+    # Ensure that helm spray plugin is installed
+    helm plugin install https://github.com/ThalesGroup/helm-spray || true
+
+    # Remove pulling limitations from docker-hub with anonymous account 
+    kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=DUMMY_name --docker-password=DUMMY_pwd --docker-email=DUMMY_email || true
+}
+
 function start() {
     ns=$1; shift
     fit_amf=$1; shift
@@ -29,8 +40,6 @@ function start() {
 
     echo "Running start() with namespace: $ns, fit_amf:$fit_amf, fit_spgwu:$fit_spgwu, fit_gnb:$fit_gnb, fit_ue:$fit_ue"
 
-    # Ensure that helm spray plugin is installed
-    helm plugin install https://github.com/ThalesGroup/helm-spray
 
     # Check if all FIT nodes are ready
     while : ; do
@@ -40,9 +49,6 @@ function start() {
 	sleep 5
     done
     kubectl get no
-
-    # Remove pulling limitations from docker-hub with anonymous account 
-    kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=DUMMY_name --docker-password=DUMMY_pwd --docker-email=DUMMY_email
 
     echo "Run the OAI 5G Core pods"
 
@@ -122,13 +128,23 @@ function stop() {
     else
 	echo "OAI5G demo is not running, there is no pod on namespace $ns !"
     fi
+    echo "Delete namespace $ns"
+    kubectl delete ns $ns
 }
 
 if test $# -lt 1
 then
     usage
 else
-    if [ "$1" == "start" ]
+    if [ "$1" == "init" ]
+    then
+	if test $# -eq 1
+	then
+	    init
+	else
+	    usage
+	fi
+    elif [ "$1" == "start" ]
     then
 	if test $# -eq 6
 	then

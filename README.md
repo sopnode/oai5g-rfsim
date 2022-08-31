@@ -118,16 +118,20 @@ The **demo-oai.py** nepi-ng script has various options to change default paramet
 
 The main options are:
 
-  * `-l` to load the k8s images on FIT nodes
-  * `-s slicename` to provide the slicename that you used to book the platform, which$$ by default is *`inria_sopnode`*.
-  * as well as `-i imagename` to use an alternative image name - default is *`kubernetes`*
+  * `--no_auto_start` to not launch the OAI5G pods by default.
+  * `-s slicename` to provide the slicename that you used to book the platform, which by default is *`inria_sopnode`*.
+  * as well as `-i imagename` to use an alternative image name - default is *`kubernetes`*.
 
 For instance, if your slicename is `inria_sc` and you have not yet loaded the k8s images on the FIT nodes, to run all the steps described above, you only have to run the following command on your laptop:
 
 ```bash
-$ ./demo-oai.py -l -s inria_sc
+$ ./demo-oai.py -s inria_sc
 ```
 
+We added the two following options to be used only when the demo-oai.py script has already run at least once, i.e., when FIT nodes have joined the k8s cluster and OAI5G setup is ready for R2lab:
+
+* `--stop` to delete all OAI5G pods. 
+* `--start` to launch again all OAI5G pods.
 
 ### Testing
 
@@ -155,8 +159,16 @@ sopnode-l1$ kubectl -noai5g logs $UE_POD_NAME -c nr-ue
 
 ### Cleanup
 
-To clean up all OAI5G pods, you can run on your laptop ``./demo-oai.py --stop`` or to run the following command directly on the k8s cluster:
+To clean up the demo, you should first remove all OAI5G pods.
+
+For that, you can run on your laptop ``./demo-oai.py --stop`` or run the following command directly on the k8s cluster:
 
 ```bash
 sopnode-l1$ helm --namespace oai5g ls --short --all | xargs -L1 helm --namespace oai5g delete
+```
+
+Then, once R2lab FIT nodes have shutdown, you can run on the k8s master:
+
+``` bash
+sopnode-l1$ fit-drain-nodes; fit-delete-nodes
 ```
