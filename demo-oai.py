@@ -195,8 +195,8 @@ def run(*, gateway, slicename,
         print(f"RUN SetUp KO : {scheduler.why()}")
         scheduler.debrief()
         return False
-    if auto_start:
-        print(f"RUN SetUp OK. You can now start the demo by running ./demo-oai.py -m {master} --start .")
+    if not auto_start:
+        print(f"RUN SetUp OK. You can now start the demo by running ./demo-oai.py -m {master} --start")
     else:
         print(f"RUN SetUp and demo started OK. You can now check the kubectl logs on the k8s {master} cluster.")
 
@@ -341,6 +341,31 @@ def stop_demo(*, gateway, slicename,
     print("\t fit-drain-nodes; fit-delete-nodes")
     return True
 
+HELP = """
+
+all the forms of the script assume there is a kubernetes cluster
+up and running on the chosen master node,
+and that the provided slicename holds the current lease on FIT/R2lab
+
+In its simplest form (no option given), the script will
+  * load images on board of the FIT nodes
+  * get the nodes to join that cluster
+  * and then deploy the k8s pods on that substrate (provided the --no-auto-start is not provided, in which case)
+
+Thanks to the --stop and --start option, one can relaunch
+the scenario without the need to re-image the selected FIT nodes; 
+a typical sequence of runs would then be
+
+  * with no option
+  * then with the --stop option to destroy the deployment
+  * and then with the --start option to re-create the deployment a second time
+
+Or,
+
+  * with the --no-auto-start option to simply load images
+  * then with the --start option to create the network
+  * and then again any number of --stop / --start calls
+"""
 
 
 def main():
@@ -348,7 +373,27 @@ def main():
     CLI frontend
     """
 
-    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+    parser = ArgumentParser(usage=HELP, formatter_class=ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument("--start", default=False,
+                        action='store_true', dest='start',
+                        help="start the oai-demo, i.e., launch OAI5G pods")
+
+    parser.add_argument("--stop", default=False,
+                        action='store_true', dest='stop',
+                        help="stop the oai-demo, i.e., delete OAI5G pods")
+
+    parser.add_argument("--no-auto-start", default=False,
+                        action='store_true', dest='no_auto_start',
+                        help="do not start the oai-demo after setup")
+
+    parser.add_argument(
+        "-i", "--image", default=default_image,
+        help="kubernetes image to load on nodes")
+
+    parser.add_argument(
+        "-m", "--master", default=default_master,
+        help="kubernetes master node")
 
     parser.add_argument("--amf", default=default_amf,
                         help="id of the node that runs oai-amf")
@@ -361,14 +406,6 @@ def main():
 
     parser.add_argument("--ue", default=default_ue,
                         help="id of the node that runs oai-ue")
-
-    parser.add_argument(
-        "-i", "--image", default=default_image,
-        help="kubernetes image to load on nodes")
-
-    parser.add_argument(
-        "-m", "--master", default=default_master,
-        help="kubernetes master node")
 
     parser.add_argument(
         "--namespace", default=default_namespace,
@@ -385,18 +422,6 @@ def main():
     parser.add_argument("-n", "--dry-runmode", default=False,
                         action='store_true', dest='dry_run',
                         help="only pretend to run, don't do anything")
-
-    parser.add_argument("--start", default=False,
-                        action='store_true', dest='start',
-                        help="start the oai-demo, i.e., launch OAI5G pods")
-
-    parser.add_argument("--stop", default=False,
-                        action='store_true', dest='stop',
-                        help="stop the oai-demo, i.e., delete OAI5G pods")
-
-    parser.add_argument("--no_auto_start", default=False,
-                        action='store_true', dest='no_auto_start',
-                        help="do not start the oai-demo after setup")
 
 
     args = parser.parse_args()

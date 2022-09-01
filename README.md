@@ -22,6 +22,23 @@ Before you can run the script in this directory, you need to install its depende
 
     pip install -r requirements.txt
 
+### Basic usage
+
+all the forms of the script assume there is a deployed kubernetes cluster on the chosen master node, and that the provided slicename holds the current lease on FIT/R2lab
+
+the mental model is we are dealing with essentially three states
+
+* (0) initially, the cluster is running and the nodes are down
+* (1) after setup, the nodes are loaded with the proper image, and have joined the cluster
+* (2) at that point one can use the `--start` option to start the system,
+  which amounts to deploying pods on the k8s cluster
+* (back to 1) it is point one can roll back and come back to the previous state, using the `--stop` option
+
+with none of the `--start/--stop` option the script goes from state 0 to (2),
+unless the `--no-auto-start` option is given
+
+run `demo-oai.py --help` for more details
+
 ### References
 
 * [OAI 5G Core Network Deployment using Helm Charts](https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed/-/blob/master/docs/DEPLOY_SA5G_HC.md)
