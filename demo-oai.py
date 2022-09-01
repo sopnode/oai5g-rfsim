@@ -29,6 +29,7 @@ from r2lab import r2lab_hostname, ListOfChoices, ListOfChoicesNullReset, find_lo
 # sopnode-w2.inria.fr runs an experimental/devel cluster
 
 default_master = 'sopnode-l1.inria.fr'
+devel_master = 'sopnode-w2.inria.fr'
 default_image = 'kubernetes'
 
 default_amf = 1
@@ -482,6 +483,10 @@ def main():
     parser.add_argument(
         "-m", "--master", default=default_master,
         help="kubernetes master node")
+    parser.add_argument(
+        "--devel", action='store_true', default=False,
+        help=f"equivalent to --master {devel_master}"
+    )
 
     parser.add_argument("--amf", default=default_amf,
                         help="id of the node that runs oai-amf")
@@ -514,6 +519,8 @@ def main():
 
     args = parser.parse_args()
     auto_start = not args.no_auto_start
+    if args.devel:
+        args.master = devel_master
 
     if args.start:
         print(f"**** Launch all pods of the oai5g demo on the k8s {args.master} cluster")
