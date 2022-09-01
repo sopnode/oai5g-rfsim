@@ -61,7 +61,7 @@ def run(*, gateway, slicename,
     faraday = SshNode(hostname=gateway, username=slicename,
                       verbose=verbose,
                       formatter=TimeColonFormatter())
-    
+
     hostnames = [r2lab_hostname(x) for x in (amf, spgwu, gnb, ue)]
 
 
@@ -100,7 +100,7 @@ def run(*, gateway, slicename,
                 Run("rhubarbe", "wait", *worker_ids),
             ],
         ),
-# for now, useless to switch off other nodes as we use RfSimulator            
+# for now, useless to switch off other nodes as we use RfSimulator
 #            SshJob(
 #                scheduler=scheduler,
 #                required=check_lease,
@@ -111,7 +111,7 @@ def run(*, gateway, slicename,
 #                command=[
 #                    Run("rhubarbe bye --all "
 #                        + "".join(f"~{x} " for x in nodes))
-#                    Run("sleep 1") 
+#                    Run("sleep 1")
 #                ]
 #            )
     ]
@@ -179,7 +179,7 @@ def run(*, gateway, slicename,
                 ]
             )
         ]
-    
+
     scheduler.check_cycles()
     print(10*'*', 'See main scheduler in',
           scheduler.export_as_pngfile("oai-demo-setup"))
@@ -199,7 +199,7 @@ def run(*, gateway, slicename,
         print(f"RUN SetUp OK. You can now start the demo by running ./demo-oai.py -m {master} --start .")
     else:
         print(f"RUN SetUp and demo started OK. You can now check the kubectl logs on the k8s {master} cluster.")
-        
+
     print(80*'*')
     return True
 
@@ -239,7 +239,7 @@ def start_demo(*, gateway, slicename,
     )
 
     green_light = check_lease
-    
+
     start_demo = [
         SshJob(
             scheduler=scheduler,
@@ -275,7 +275,7 @@ def start_demo(*, gateway, slicename,
 
 
 def stop_demo(*, gateway, slicename,
-              master, namespace, fitnode, 
+              master, namespace, fitnode,
               verbose, dry_run ):
     """
     delete oai5g pods on the k8s cluster
@@ -306,7 +306,7 @@ def stop_demo(*, gateway, slicename,
     )
 
     green_light = check_lease
-    
+
     stop_demo = [
         SshJob(
             scheduler=scheduler,
@@ -365,15 +365,15 @@ def main():
     parser.add_argument(
         "-i", "--image", default=default_image,
         help="kubernetes image to load on nodes")
-    
+
     parser.add_argument(
         "-m", "--master", default=default_master,
         help="kubernetes master node")
-    
+
     parser.add_argument(
         "--namespace", default=default_namespace,
         help=f"k8s namespace in which OAI5G pods will run")
-    
+
     parser.add_argument(
         "-s", "--slicename", default=default_slicename,
         help="slicename used to book FIT nodes")
@@ -381,11 +381,11 @@ def main():
     parser.add_argument("-v", "--verbose", default=False,
                         action='store_true', dest='verbose',
                         help="run script in verbose mode")
-    
+
     parser.add_argument("-n", "--dry-runmode", default=False,
                         action='store_true', dest='dry_run',
                         help="only pretend to run, don't do anything")
-    
+
     parser.add_argument("--start", default=False,
                         action='store_true', dest='start',
                         help="start the oai-demo, i.e., launch OAI5G pods")
