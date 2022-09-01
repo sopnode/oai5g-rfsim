@@ -182,7 +182,7 @@ def run(*, gateway, slicename,
 
     scheduler.check_cycles()
     print(10*'*', 'See main scheduler in',
-          scheduler.export_as_pngfile("oai-demo-setup"))
+          scheduler.export_as_pngfile("oai5g-demo-setup"))
 
     # orchestration scheduler jobs
     if verbose:
@@ -256,7 +256,7 @@ def start_demo(*, gateway, slicename,
     ]
     scheduler.check_cycles()
     print(10*'*', 'See main scheduler in',
-          scheduler.export_as_pngfile("oai-demo-start"))
+          scheduler.export_as_pngfile("oai5g-demo-start"))
 
     # orchestration scheduler jobs
     if verbose:
@@ -322,7 +322,7 @@ def stop_demo(*, gateway, slicename,
     ]
     scheduler.check_cycles()
     print(10*'*', 'See main scheduler in',
-          scheduler.export_as_pngfile("oai-demo-stop"))
+          scheduler.export_as_pngfile("oai5g-demo-stop"))
 
     # orchestration scheduler jobs
     if verbose:
@@ -337,8 +337,89 @@ def stop_demo(*, gateway, slicename,
         return False
     print(f"No more OAI5G pods on the {master} cluster")
     print(80*'*')
-    print(f"Nota: Once you quit the demo and when fit nodes are off, you can clean up the k8s {master} cluster by running on the master:")
-    print("\t fit-drain-nodes; fit-delete-nodes")
+    print(f"Nota: If you are done with the demo, do not forget to clean up the k8s {master} cluster by running:")
+    print(f"\t ./demo-oai.py [-m {master}] --cleanup")
+    return True
+
+def cleanup_demo(*, gateway, slicename, master,
+                 amf, spgwu, gnb, ue, verbose, dry_run ):
+    """
+    drain and delete FIT nodes from the k8s cluster and switch them off
+
+    Arguments:
+        slicename: the Unix login name (slice name) to enter the gateway
+        master: k8s master name
+        amf: FIT node number in which oai-amf will be deployed
+        spgwu: FIT node number in which spgwu-tiny will be deployed
+        gnb: FIT node number in which oai-gnb will be deployed
+        ue: FIT node number in which oai-nr-ue will be deployed
+    """
+
+    faraday = SshNode(hostname=gateway, username=slicename,
+                      verbose=verbose, formatter=TimeColonFormatter())
+
+    k8s_master = SshNode(gateway=faraday, hostname=r2lab_hostname(master),
+                         username="root",formatter=TimeColonFormatter(),
+                         verbose=verbose)
+
+    # the global scheduler
+    scheduler = Scheduler(verbose=verbose)
+
+    ##########
+    check_lease = SshJob(
+        scheduler=scheduler,
+        node = faraday,
+        critical = True,
+        verbose=verbose,
+        command = Run("rhubarbe leases --check"),
+    )
+
+    green_light = check_lease
+
+    cleanup_k8s = [
+        SshJob(
+            scheduler=scheduler,
+            required=green_light,
+            node=k8s_master,
+            critical=False,
+            verbose=verbose,
+            label=f"Drain and delete FIT nodes from the k8s {master} cluster",
+            command=[
+                Run("fit-drain-nodes; fit-delete-nodes"),
+            ]
+        )
+    ]
+    
+    switchoff_fit_nodes = [
+        SshJob(
+            scheduler=scheduler,
+            required=check_lease,
+            node=faraday,
+            critical=False,
+            verbose=verbose,
+            label="turning off unused nodes",
+            command=[
+                Run(f"rhubarbe off {amf} {spgwu} {gnb} {ue}")
+            ]
+        )
+    ]
+    scheduler.check_cycles()
+    print(10*'*', 'See main scheduler in',
+          scheduler.export_as_pngfile("oai5g-demo-cleanup"))
+
+    # orchestration scheduler jobs
+    if verbose:
+        scheduler.list()
+
+    if dry_run:
+        return True
+
+    if not scheduler.orchestrate():
+        print(f"Could not cleanup demo: {scheduler.why()}")
+        scheduler.debrief()
+        return False
+    print(80*'*')
+    print(f"Thank you, the k8s {master} cluster is now clean and FIT nodes have been switched off")
     return True
 
 HELP = """
@@ -365,6 +446,9 @@ Or,
   * with the --no-auto-start option to simply load images
   * then with the --start option to create the network
   * and then again any number of --stop / --start calls
+
+At the end of your tests, please run the script with the --cleanup option to clean the k8s cluster and
+switch off FIT nodes.
 """
 
 
@@ -382,6 +466,10 @@ def main():
     parser.add_argument("--stop", default=False,
                         action='store_true', dest='stop',
                         help="stop the oai-demo, i.e., delete OAI5G pods")
+
+    parser.add_argument("--cleanup", default=False,
+                        action='store_true', dest='cleanup',
+                        help="Remove smoothly FIT nodes from the k8s cluster and switch them off")
 
     parser.add_argument("--no-auto-start", default=False,
                         action='store_true', dest='no_auto_start',
@@ -432,11 +520,11 @@ def main():
         start_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
                    amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
                    namespace=args.namespace, dry_run=args.dry_run, verbose=args.verbose)
-    elif args.stop:
-        print(f"**** Delete all pods of the oai5g demo on k8s {args.master} cluster")
-        stop_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
-                  namespace=args.namespace, fitnode=args.amf,
-                  dry_run=args.dry_run, verbose=args.verbose)
+    elif args.cleanup:
+        print(f"**** Drain and remove FIT nodes from the {args.master} cluster, then swith off FIT nodes")
+        cleanup_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
+                     amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
+                     dry_run=args.dry_run, verbose=args.verbose)
     else:
         print(f"**** Prepare oai5g demo setup on the k8s {args.master} cluster with {args.slicename} slicename")
         print(f"OAI5G pods will run on the {args.namespace} k8s namespace")
