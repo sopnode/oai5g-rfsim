@@ -24,11 +24,12 @@ function init() {
     # Following should be done once per demo.
 
     echo "init: ensure spray is installed and possibly create secret docker-registry"
+    # Remove pulling limitations from docker-hub with anonymous account
+    kubectl delete secret regcred || true
+    kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=DUMMY_name --docker-password=DUMMY_pwd --docker-email=DUMMY_email || true
+
     # Ensure that helm spray plugin is installed
     helm plugin install https://github.com/ThalesGroup/helm-spray || true
-
-    # Remove pulling limitations from docker-hub with anonymous account 
-    kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=DUMMY_name --docker-password=DUMMY_pwd --docker-email=DUMMY_email || true
 }
 
 function start() {
