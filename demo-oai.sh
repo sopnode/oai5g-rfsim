@@ -5,12 +5,11 @@ OAI5G_CORE="$OAI5G_CHARTS"/oai-5g-core
 OAI5G_BASIC="$OAI5G_CORE"/oai-5g-basic
 OAI5G_RAN="$OAI5G_CHARTS"/oai-5g-ran
 
-
 #Default namespace
 #ns="oai5g"
 
 function usage() {
-    echo "USAGE: `basename "$0"` start namespace fit_amf fit_spgwu fit_gnb fit_ue | stop namespace"
+    echo "USAGE: $(basename "$0") start namespace fit_amf fit_spgwu fit_gnb fit_ue | stop namespace"
     echo "This scripts launches/deletes the OAI5G pods on namespace $ns over the Sopnode platform"
     echo "Requirements: 4 R2lab FIT nodes already attached to the k8s cluster to run the following pods: "
     echo "  - oai-amf"
@@ -33,21 +32,26 @@ function init() {
 }
 
 function start() {
-    ns=$1; shift
-    fit_amf=$1; shift
-    fit_spgwu=$1; shift
-    fit_gnb=$1; shift
-    fit_ue=$1; shift
+    ns=$1
+    shift
+    fit_amf=$1
+    shift
+    fit_spgwu=$1
+    shift
+    fit_gnb=$1
+    shift
+    fit_ue=$1
+    shift
 
     echo "Running start() with namespace: $ns, fit_amf:$fit_amf, fit_spgwu:$fit_spgwu, fit_gnb:$fit_gnb, fit_ue:$fit_ue"
 
-
     # Check if all FIT nodes are ready
-    while : ; do
-	kubectl wait no --for=condition=Ready $fit_amf $fit_spgwu $fit_gnb $fit_ue && break
-	clear;
-	echo "Wait until all FIT nodes are in READY state"; kubectl get no
-	sleep 5
+    while :; do
+        kubectl wait no --for=condition=Ready $fit_amf $fit_spgwu $fit_gnb $fit_ue && break
+        clear
+        echo "Wait until all FIT nodes are in READY state"
+        kubectl get no
+        sleep 5
     done
     kubectl get no
 
@@ -77,18 +81,18 @@ function start() {
 
     echo "Run the oai-nr-ue pod on $fit_ue"
 
-    # Retrieve the IP address of the gnb pod and set it 
+    # Retrieve the IP address of the gnb pod and set it
     GNB_POD_NAME=$(kubectl -n$ns get pods -l app.kubernetes.io/name=oai-gnb -o jsonpath="{.items[0].metadata.name}")
     GNB_POD_IP=$(kubectl -n$ns get pod $GNB_POD_NAME --template '{{.status.podIP}}')
     echo "gNB pod IP is $GNB_POD_IP"
     conf_ue_dir="$OAI5G_RAN/oai-nr-ue"
-    cat > /tmp/gnb-values.sed <<EOF
+    cat >/tmp/gnb-values.sed <<EOF
 s|  rfSimulator:.*|  rfSimulator: "${GNB_POD_IP}"|
 EOF
 
     echo "(Over)writing oai-nr-ue chart $conf_ue_dir/values.yaml"
     cp $conf_ue_dir/values.yaml /tmp/values-orig.yaml
-    sed -f /tmp/gnb-values.sed < /tmp/values-orig.yaml > /tmp/values.yaml
+    sed -f /tmp/gnb-values.sed </tmp/values-orig.yaml >/tmp/values.yaml
     cp /tmp/values.yaml $conf_ue_dir/
 
     echo "helm --namespace=$ns install oai-nr-ue oai-nr-ue/"
@@ -106,62 +110,55 @@ EOF
 }
 
 function stop() {
-    ns=$1; shift
+    ns=$1
+    shift
 
     echo "Running stop() on namespace:$ns"
 
-    res=`helm -n $ns ls | wc -l`
-    if test $res -gt 1
-    then
-	echo "Remove all 5G OAI pods"
-	echo "helm -n $ns ls --short --all | xargs -L1 helm --namespace $ns delete"
-	helm -n $ns ls --short --all | xargs -L1 helm --namespace $ns delete 
-	kubectl wait -n $ns --for=delete pod mysql
-	kubectl wait -n $ns --for=delete pod oai-amf
-	kubectl wait -n $ns --for=delete pod oai-smf
-	kubectl wait -n $ns --for=delete pod oai-ausf
-	kubectl wait -n $ns --for=delete pod oai-udm
-	kubectl wait -n $ns --for=delete pod oai-udr
-	kubectl wait -n $ns --for=delete pod oai-nrf
-	kubectl wait -n $ns --for=delete pod oai-spgwu-tiny
-	kubectl wait -n $ns --for=delete pod oai-gnb
-	kubectl wait -n $ns --for=delete pod oai-nr-ue
+    res=$(helm -n $ns ls | wc -l)
+    if test $res -gt 1; then
+        echo "Remove all 5G OAI pods"
+        echo "helm -n $ns ls --short --all | xargs -L1 helm --namespace $ns delete"
+        helm -n $ns ls --short --all | xargs -L1 helm --namespace $ns delete
+        kubectl wait -n $ns --for=delete pod mysql
+        kubectl wait -n $ns --for=delete pod oai-amf
+        kubectl wait -n $ns --for=delete pod oai-smf
+        kubectl wait -n $ns --for=delete pod oai-ausf
+        kubectl wait -n $ns --for=delete pod oai-udm
+        kubectl wait -n $ns --for=delete pod oai-udr
+        kubectl wait -n $ns --for=delete pod oai-nrf
+        kubectl wait -n $ns --for=delete pod oai-spgwu-tiny
+        kubectl wait -n $ns --for=delete pod oai-gnb
+        kubectl wait -n $ns --for=delete pod oai-nr-ue
     else
-	echo "OAI5G demo is not running, there is no pod on namespace $ns !"
+        echo "OAI5G demo is not running, there is no pod on namespace $ns !"
     fi
     echo "Delete namespace $ns"
     kubectl delete ns $ns
 }
 
-if test $# -lt 1
-then
+if test $# -lt 1; then
     usage
 else
-    if [ "$1" == "init" ]
-    then
-	if test $# -eq 1
-	then
-	    init
-	else
-	    usage
-	fi
-    elif [ "$1" == "start" ]
-    then
-	if test $# -eq 6
-	then
-	    start $2 $3 $4 $5 $6
-	else
-	    usage
-	fi
-    elif [ "$1" == "stop" ]
-    then
-	if test $# -eq 2
-	then
-	    stop $2
-	else
-	    usage
-	fi
+    if [ "$1" == "init" ]; then
+        if test $# -eq 1; then
+            init
+        else
+            usage
+        fi
+    elif [ "$1" == "start" ]; then
+        if test $# -eq 6; then
+            start $2 $3 $4 $5 $6
+        else
+            usage
+        fi
+    elif [ "$1" == "stop" ]; then
+        if test $# -eq 2; then
+            stop $2
+        else
+            usage
+        fi
     else
-	usage
+        usage
     fi
 fi
