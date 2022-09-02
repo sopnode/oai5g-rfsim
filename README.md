@@ -34,7 +34,7 @@ the mental model is we are dealing with essentially three states
   which amounts to deploying pods on the k8s cluster
 * (back to 1) it is point one can roll back and come back to the previous state, using the `--stop` option
 
-with none of the `--start/--stop` option the script goes from state 0 to (2),
+with none of the `--start/--stop/--cleanup` option the script goes from state 0 to (2),
 unless the `--no-auto-start` option is given
 
 run `demo-oai.py --help` for more details

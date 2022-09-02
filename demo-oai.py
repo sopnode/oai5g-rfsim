@@ -43,7 +43,7 @@ default_namespace = 'oai5g'
 
 
 def run(*, gateway, slicename,
-        master, namespace, auto_start,
+        master, namespace, auto_start, load_images,
         amf, spgwu, gnb, ue,
         image, verbose, dry_run ):
     """
@@ -88,8 +88,9 @@ def run(*, gateway, slicename,
 
     green_light = check_lease
 
-    green_light = [
-        SshJob(
+    if load_images:
+        green_light = [
+            SshJob(
             scheduler=scheduler,
             required=check_lease,
             node=faraday,
@@ -127,7 +128,7 @@ def run(*, gateway, slicename,
             label=f"Reset data interface, ipip tunnels of worker node {r2lab_hostname(id)} and possibly leave {master} k8s cluster",
             command=[
                 Run("nmcli con down data; nmcli dev status; leave-tunnel"),
-                Run(f"kube-install.sh leave-cluster r2lab@{master}; sleep 60"),
+                Run(f"kube-install.sh leave-cluster; sleep 60"),
             ]
         ) for id, node in node_index.items()
     ]
@@ -182,8 +183,12 @@ def run(*, gateway, slicename,
         ]
 
     scheduler.check_cycles()
-    print(10*'*', 'See main scheduler in',
-          scheduler.export_as_pngfile("oai5g-demo-setup"))
+    output="demo-oai"
+    if not auto_start:
+        output += "-noauto"
+    if load_images:
+        output += "-load"
+    print(10*'*', 'See main scheduler in', scheduler.export_as_pngfile(output))
 
     # orchestration scheduler jobs
     if verbose:
@@ -257,7 +262,7 @@ def start_demo(*, gateway, slicename,
     ]
     scheduler.check_cycles()
     print(10*'*', 'See main scheduler in',
-          scheduler.export_as_pngfile("oai5g-demo-start"))
+          scheduler.export_as_pngfile("demo-oai-start"))
 
     # orchestration scheduler jobs
     if verbose:
@@ -323,7 +328,7 @@ def stop_demo(*, gateway, slicename,
     ]
     scheduler.check_cycles()
     print(10*'*', 'See main scheduler in',
-          scheduler.export_as_pngfile("oai5g-demo-stop"))
+          scheduler.export_as_pngfile("demo-oai-stop"))
 
     # orchestration scheduler jobs
     if verbose:
@@ -406,7 +411,7 @@ def cleanup_demo(*, gateway, slicename, master,
     ]
     scheduler.check_cycles()
     print(10*'*', 'See main scheduler in',
-          scheduler.export_as_pngfile("oai5g-demo-cleanup"))
+          scheduler.export_as_pngfile("demo-oai-cleanup"))
 
     # orchestration scheduler jobs
     if verbose:
@@ -460,21 +465,29 @@ def main():
 
     parser = ArgumentParser(usage=HELP, formatter_class=ArgumentDefaultsHelpFormatter)
 
-    parser.add_argument("--start", default=False,
-                        action='store_true', dest='start',
-                        help="start the oai-demo, i.e., launch OAI5G pods")
+    parser.add_argument(
+        "--start", default=False,
+        action='store_true', dest='start',
+        help="start the oai-demo, i.e., launch OAI5G pods")
 
-    parser.add_argument("--stop", default=False,
-                        action='store_true', dest='stop',
-                        help="stop the oai-demo, i.e., delete OAI5G pods")
+    parser.add_argument(
+        "--stop", default=False,
+        action='store_true', dest='stop',
+        help="stop the oai-demo, i.e., delete OAI5G pods")
 
-    parser.add_argument("--cleanup", default=False,
-                        action='store_true', dest='cleanup',
-                        help="Remove smoothly FIT nodes from the k8s cluster and switch them off")
+    parser.add_argument(
+        "--cleanup", default=False,
+        action='store_true', dest='cleanup',
+        help="Remove smoothly FIT nodes from the k8s cluster and switch them off")
 
-    parser.add_argument("--no-auto-start", default=False,
-                        action='store_true', dest='no_auto_start',
-                        help="do not start the oai-demo after setup")
+    parser.add_argument(
+        "-a", "--no-auto-start", default=True,
+        action='store_false', dest='auto_start',
+        help="default is to start the oai-demo after setup")
+
+    parser.add_argument(
+        "-l", "--load-images", default=False, action='store_true',
+        help="load the kubernetes image on the nodes before anything else")
 
     parser.add_argument(
         "-i", "--image", default=default_image,
@@ -518,7 +531,6 @@ def main():
 
 
     args = parser.parse_args()
-    auto_start = not args.no_auto_start
     if args.devel:
         args.master = devel_master
 
@@ -540,17 +552,19 @@ def main():
         print(f"\t{r2lab_hostname(args.spgwu)} for oai-spgwu-tiny")
         print(f"\t{r2lab_hostname(args.gnb)} for oai-gnb")
         print(f"\t{r2lab_hostname(args.ue)} for oai-nr-ue")
-        print(f"with k8s image {args.image} loaded")
-        if auto_start:
+        if args.load_images:
+            print(f"with k8s image {args.image} loaded")
+        if args.auto_start:
             print("Automatically start the demo after setup")
         else:
             print("Do not start the demo after setup")
 
         run(gateway=default_gateway, slicename=args.slicename,
-            master=args.master, namespace=args.namespace, auto_start=auto_start,
+            master=args.master, namespace=args.namespace,
+            auto_start=args.auto_start, load_images=args.load_images,
             amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
-            dry_run=args.dry_run,verbose=args.verbose,
-            image=args.image
+            dry_run=args.dry_run, verbose=args.verbose,
+            image=args.image,
             )
 
 
