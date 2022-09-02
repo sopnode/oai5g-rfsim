@@ -63,8 +63,6 @@ def run(*, gateway, slicename,
                       verbose=verbose,
                       formatter=TimeColonFormatter())
 
-    hostnames = [r2lab_hostname(x) for x in (amf, spgwu, gnb, ue)]
-
 
     node_index = {
         id: SshNode(gateway=faraday, hostname=r2lab_hostname(id),
@@ -218,7 +216,7 @@ def start_demo(*, gateway, slicename,
                       verbose=verbose, formatter=TimeColonFormatter())
 
     k8s_worker = SshNode(gateway=faraday, hostname=r2lab_hostname(amf),
-                         username="root",formatter=TimeColonFormatter(),
+                         username="root", formatter=TimeColonFormatter(),
                          verbose=verbose)
 
     # the global scheduler
@@ -270,21 +268,18 @@ def start_demo(*, gateway, slicename,
 
 
 def stop_demo(*, gateway, slicename,
-              master, namespace, fitnode,
-              verbose, dry_run ):
+              master, amf, spgwu, gnb, ue,
+              namespace, verbose, dry_run ):
     """
     delete oai5g pods on the k8s cluster
 
-    Arguments:
-        slicename: the Unix login name (slice name) to enter the gateway
-        master: k8s master name
-        fitnode: FIT node used to run k8s commands
+    same arguments as start_demo - only amf is actually used
     """
 
     faraday = SshNode(hostname=gateway, username=slicename,
                       verbose=verbose, formatter=TimeColonFormatter())
 
-    k8s_worker = SshNode(gateway=faraday, hostname=r2lab_hostname(fitnode),
+    k8s_worker = SshNode(gateway=faraday, hostname=r2lab_hostname(amf),
                          username="root",formatter=TimeColonFormatter(),
                          verbose=verbose)
 
@@ -309,7 +304,7 @@ def stop_demo(*, gateway, slicename,
             node=k8s_worker,
             critical=True,
             verbose=verbose,
-            label=f"Delete OAI5G pods by calling demo-oai.sh stop from {r2lab_hostname(fitnode)}",
+            label=f"Delete OAI5G pods by calling demo-oai.sh stop from {k8s_worker.hostname}",
             command=[
                 RunScript("demo-oai.sh", "stop", namespace),
             ]
@@ -353,8 +348,8 @@ def cleanup_demo(*, gateway, slicename, master,
     faraday = SshNode(hostname=gateway, username=slicename,
                       verbose=verbose, formatter=TimeColonFormatter())
 
-    k8s_master = SshNode(gateway=faraday, hostname=r2lab_hostname(master),
-                         username="root",formatter=TimeColonFormatter(),
+    k8s_master = SshNode(gateway=faraday, hostname=master,
+                         username="r2lab",formatter=TimeColonFormatter(),
                          verbose=verbose)
 
     # the global scheduler
@@ -528,6 +523,12 @@ def main():
         start_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
                    amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
                    namespace=args.namespace, dry_run=args.dry_run, verbose=args.verbose)
+    elif args.stop:
+        print(f"delete all pods in the {args.namespace} namespace")
+        stop_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
+                  amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
+                  namespace=args.namespace, dry_run=args.dry_run, verbose=args.verbose)
+
     elif args.cleanup:
         print(f"**** Drain and remove FIT nodes from the {args.master} cluster, then swith off FIT nodes")
         cleanup_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,

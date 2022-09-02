@@ -106,7 +106,7 @@ EOF
     kubectl -n$ns logs $UE_POD_NAME -c nr-ue
 
     echo "RUN OK."
-    echo "To clean up all pods, you can run the demo-oai-clean script. "
+    echo "To clean up all pods, you can run the demo-oai.py --cleanup script. "
 }
 
 function stop() {
