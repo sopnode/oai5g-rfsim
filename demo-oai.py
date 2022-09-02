@@ -390,7 +390,7 @@ def cleanup_demo(*, gateway, slicename, master,
             ]
         )
     ]
-    
+
     switchoff_fit_nodes = [
         SshJob(
             scheduler=scheduler,
@@ -435,7 +435,7 @@ In its simplest form (no option given), the script will
   * and then deploy the k8s pods on that substrate (provided the --no-auto-start is not provided, in which case)
 
 Thanks to the --stop and --start option, one can relaunch
-the scenario without the need to re-image the selected FIT nodes; 
+the scenario without the need to re-image the selected FIT nodes;
 a typical sequence of runs would then be
 
   * with no option
