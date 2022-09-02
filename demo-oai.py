@@ -118,7 +118,7 @@ def run(*, gateway, slicename,
 #            )
     ]
 
-    prepares = [
+    leave_joins = [
         SshJob(
             scheduler=scheduler,
             required=green_light,
@@ -128,31 +128,20 @@ def run(*, gateway, slicename,
             label=f"Reset data interface, ipip tunnels of worker node {r2lab_hostname(id)} and possibly leave {master} k8s cluster",
             command=[
                 Run("nmcli con down data; nmcli dev status; leave-tunnel"),
-                Run(f"kube-install.sh leave-cluster; sleep 60"),
-            ]
-        ) for id, node in node_index.items()
-    ]
-
-    joins = [
-        SshJob(
-            scheduler=scheduler,
-            required=prepares,
-            node=node,
-            critical=True,
-            verbose=verbose,
-            label=f"Set data interface and ipip tunnels of worker node {r2lab_hostname(id)} and add it to {master} k8s cluster",
-            command=[
+                Run(f"kube-install.sh leave-cluster"),
+                Run(f"sleep 60"),
                 Run("nmcli con up data; nmcli dev status; join-tunnel"),
                 Run(f"kube-install.sh join-cluster r2lab@{master}")
             ]
         ) for id, node in node_index.items()
     ]
 
+
     # We launch the k8s demo from the FIT node used to run oai-amf
     run_setup = [
         SshJob(
             scheduler=scheduler,
-            required=joins,
+            required=leave_joins,
             node=node_index[amf],
             critical=True,
             verbose=verbose,
