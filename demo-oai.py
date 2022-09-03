@@ -6,13 +6,18 @@ Then, it clones the oai5g-rfsim git directory on one of the 4 fit nodes and appl
 different patches on the various OAI5G charts to make them run on the SopNode platform.
 Finally, it deploys the different OAI5G pods through the same fit node.
 
+This version requires asynciojobs-0.16 or higher; if needed, upgrade with
+pip install -U asynciojobs
+
+As opposed to a former version that created 4 different schedulers,
+here we create a single one that describes the complete workflow from
+the very beginning (all fit nodes off) to the end (all fit nodes off)
+and then remove some parts as requested by the script options
 """
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-from pathlib import Path
 
 # the default for asyncssh is to be rather verbose
-import logging
 from asyncssh.logging import set_log_level as asyncssh_set_log_level
 
 from asynciojobs import Job, Scheduler, PrintJob
@@ -42,10 +47,10 @@ default_slicename  = 'inria_sopnode'
 default_namespace = 'oai5g'
 
 
-def run(*, gateway, slicename,
+def run(*, mode, gateway, slicename,
         master, namespace, auto_start, load_images,
         amf, spgwu, gnb, ue,
-        image, verbose, dry_run ):
+        image, verbose, dry_run):
     """
     run the OAI5G demo on the k8s cluster
 
@@ -63,6 +68,9 @@ def run(*, gateway, slicename,
                       verbose=verbose,
                       formatter=TimeColonFormatter())
 
+    k8s_master = SshNode(gateway=faraday, hostname=master,
+                         username="r2lab",formatter=TimeColonFormatter(),
+                         verbose=verbose)
 
     node_index = {
         id: SshNode(gateway=faraday, hostname=r2lab_hostname(id),
@@ -84,22 +92,18 @@ def run(*, gateway, slicename,
         command = Run("rhubarbe leases --check"),
     )
 
-    green_light = check_lease
-
-    if load_images:
-        green_light = [
-            SshJob(
-            scheduler=scheduler,
-            required=check_lease,
-            node=faraday,
-            critical=True,
-            verbose=verbose,
-            label = f"Load image {image} on worker nodes",
-            commands=[
-                Run("rhubarbe", "load", *worker_ids, "-i", image),
-                Run("rhubarbe", "wait", *worker_ids),
-            ],
-        ),
+    job_load_images = SshJob(
+        scheduler=scheduler,
+        required=check_lease,
+        node=faraday,
+        critical=True,
+        verbose=verbose,
+        label = f"Load image {image} on worker nodes",
+        commands=[
+            Run("rhubarbe", "load", *worker_ids, "-i", image),
+            Run("rhubarbe", "wait", *worker_ids),
+        ],
+    )
 # for now, useless to switch off other nodes as we use RfSimulator
 #            SshJob(
 #                scheduler=scheduler,
@@ -114,262 +118,69 @@ def run(*, gateway, slicename,
 #                    Run("sleep 1")
 #                ]
 #            )
-    ]
 
-    leave_joins = [
-        SshJob(
-            scheduler=scheduler,
-            required=green_light,
-            node=node,
-            critical=False,
-            verbose=verbose,
-            label=f"Reset data interface, ipip tunnels of worker node {r2lab_hostname(id)} and possibly leave {master} k8s cluster",
-            command=[
-                Run("nmcli con down data; nmcli dev status; leave-tunnel"),
-                Run(f"kube-install.sh leave-cluster"),
-                Run(f"sleep 60"),
-                Run("nmcli con up data; nmcli dev status; join-tunnel"),
-                Run(f"kube-install.sh join-cluster r2lab@{master}")
-            ]
-        ) for id, node in node_index.items()
-    ]
-
+    leave_joins = [ SshJob(
+        scheduler=scheduler,
+        required=job_load_images,
+        node=node,
+        critical=False,
+        verbose=verbose,
+        label=f"Reset data interface, ipip tunnels of worker node {r2lab_hostname(id)} and possibly leave {master} k8s cluster",
+        command=[
+            Run("nmcli con down data; nmcli dev status; leave-tunnel"),
+            Run(f"kube-install.sh leave-cluster"),
+            Run(f"sleep 60"),
+            Run("nmcli con up data; nmcli dev status; join-tunnel"),
+            Run(f"kube-install.sh join-cluster r2lab@{master}")
+        ]
+    ) for id, node in node_index.items() ]
 
     # We launch the k8s demo from the FIT node used to run oai-amf
-    run_setup = [
-        SshJob(
-            scheduler=scheduler,
-            required=leave_joins,
-            node=node_index[amf],
-            critical=True,
-            verbose=verbose,
-            label=f"Clone oai-cn5g-fed, apply patches and run the k8s demo-oai script from {r2lab_hostname(amf)}",
-            command=[
-                Run("rm -rf oai-cn5g-fed; git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed"),
-                RunScript("config-oai5g-sopnode.sh", r2lab_hostname(amf),
-                          r2lab_hostname(spgwu), r2lab_hostname(gnb),
-                          r2lab_hostname(ue)),
-                RunScript("demo-oai.sh", "init"),
-            ]
-        )
-    ]
-    if auto_start:
-        start_demo = [
-            SshJob(
-                scheduler=scheduler,
-                required=run_setup,
-                node=node_index[amf],
-                critical=True,
-                verbose=verbose,
-                label=f"Launch OAI5G pods by calling demo-oai.sh start from {r2lab_hostname(amf)}",
-                command=[
-                    RunScript("demo-oai.sh", "start", namespace, r2lab_hostname(amf),
-	                      r2lab_hostname(spgwu), r2lab_hostname(gnb), r2lab_hostname(ue)),
-                ]
-            )
+    init_demo = SshJob(
+        scheduler=scheduler,
+        required=leave_joins,
+        node=node_index[amf],
+        critical=True,
+        verbose=verbose,
+        label=f"Clone oai-cn5g-fed, apply patches and run the k8s demo-oai script from {r2lab_hostname(amf)}",
+        command=[
+            Run("rm -rf oai-cn5g-fed; git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed"),
+            RunScript("config-oai5g-sopnode.sh", r2lab_hostname(amf),
+                        r2lab_hostname(spgwu), r2lab_hostname(gnb),
+                        r2lab_hostname(ue)),
+            RunScript("demo-oai.sh", "init"),
         ]
-
-    scheduler.check_cycles()
-    output="demo-oai"
-    if not auto_start:
-        output += "-noauto"
-    if load_images:
-        output += "-load"
-    print(10*'*', 'See main scheduler in', scheduler.export_as_pngfile(output))
-
-    # orchestration scheduler jobs
-    if verbose:
-        scheduler.list()
-
-    if dry_run:
-        return True
-
-    if not scheduler.orchestrate():
-        print(f"RUN SetUp KO : {scheduler.why()}")
-        scheduler.debrief()
-        return False
-    if not auto_start:
-        print(f"RUN SetUp OK. You can now start the demo by running ./demo-oai.py -m {master} --start")
-    else:
-        print(f"RUN SetUp and demo started OK. You can now check the kubectl logs on the k8s {master} cluster.")
-
-    print(80*'*')
-    return True
-
-
-def start_demo(*, gateway, slicename,
-               master, amf, spgwu, gnb, ue,
-               namespace, verbose, dry_run ):
-    """
-    Launch oai5g pods on the k8s cluster
-
-    Arguments:
-        slicename: the Unix login name (slice name) to enter the gateway
-        master: k8s master name
-        amf: FIT node number in which oai-amf will be deployed
-        spgwu: FIT node number in which spgwu-tiny will be deployed
-        gnb: FIT node number in which oai-gnb will be deployed
-        ue: FIT node number in which oai-nr-ue will be deployed
-    """
-
-    faraday = SshNode(hostname=gateway, username=slicename,
-                      verbose=verbose, formatter=TimeColonFormatter())
-
-    k8s_worker = SshNode(gateway=faraday, hostname=r2lab_hostname(amf),
-                         username="root", formatter=TimeColonFormatter(),
-                         verbose=verbose)
-
-    # the global scheduler
-    scheduler = Scheduler(verbose=verbose)
-
-    ##########
-    check_lease = SshJob(
-        scheduler=scheduler,
-        node = faraday,
-        critical = True,
-        verbose=verbose,
-        command = Run("rhubarbe leases --check"),
     )
 
-    green_light = check_lease
-
-    start_demo = [
-        SshJob(
-            scheduler=scheduler,
-            required=green_light,
-            node=k8s_worker,
-            critical=True,
-            verbose=verbose,
-            label=f"Launch OAI5G pods by calling demo-oai.sh start from {r2lab_hostname(amf)}",
-            command=[
-                RunScript("demo-oai.sh", "start", namespace, r2lab_hostname(amf),
-                          r2lab_hostname(spgwu), r2lab_hostname(gnb), r2lab_hostname(ue)),
-            ]
-        )
-    ]
-    scheduler.check_cycles()
-    print(10*'*', 'See main scheduler in',
-          scheduler.export_as_pngfile("demo-oai-start"))
-
-    # orchestration scheduler jobs
-    if verbose:
-        scheduler.list()
-
-    if dry_run:
-        return True
-
-    if not scheduler.orchestrate():
-        print(f"Could not launch OAI5G pods: {scheduler.why()}")
-        scheduler.debrief()
-        return False
-    print(f"OAI5G demo started, you can check kubectl logs on the {master} cluster")
-    print(80*'*')
-    return True
-
-
-def stop_demo(*, gateway, slicename,
-              master, amf, spgwu, gnb, ue,
-              namespace, verbose, dry_run ):
-    """
-    delete oai5g pods on the k8s cluster
-
-    same arguments as start_demo - only amf is actually used
-    """
-
-    faraday = SshNode(hostname=gateway, username=slicename,
-                      verbose=verbose, formatter=TimeColonFormatter())
-
-    k8s_worker = SshNode(gateway=faraday, hostname=r2lab_hostname(amf),
-                         username="root",formatter=TimeColonFormatter(),
-                         verbose=verbose)
-
-    # the global scheduler
-    scheduler = Scheduler(verbose=verbose)
-
-    ##########
-    check_lease = SshJob(
+    start_demo = SshJob(
         scheduler=scheduler,
-        node = faraday,
-        critical = True,
+        required=init_demo,
+        node=node_index[amf],
+        critical=True,
         verbose=verbose,
-        command = Run("rhubarbe leases --check"),
+        label=f"Launch OAI5G pods by calling demo-oai.sh start from {r2lab_hostname(amf)}",
+        command=[
+            RunScript("demo-oai.sh", "start", namespace, r2lab_hostname(amf),
+                    r2lab_hostname(spgwu), r2lab_hostname(gnb), r2lab_hostname(ue)),
+        ]
     )
 
-    green_light = check_lease
-
-    stop_demo = [
-        SshJob(
-            scheduler=scheduler,
-            required=green_light,
-            node=k8s_worker,
-            critical=True,
-            verbose=verbose,
-            label=f"Delete OAI5G pods by calling demo-oai.sh stop from {k8s_worker.hostname}",
-            command=[
-                RunScript("demo-oai.sh", "stop", namespace),
-            ]
-        )
-    ]
-    scheduler.check_cycles()
-    print(10*'*', 'See main scheduler in',
-          scheduler.export_as_pngfile("demo-oai-stop"))
-
-    # orchestration scheduler jobs
-    if verbose:
-        scheduler.list()
-
-    if dry_run:
-        return True
-
-    if not scheduler.orchestrate():
-        print(f"Could not delete OAI5G pods: {scheduler.why()}")
-        scheduler.debrief()
-        return False
-    print(f"No more OAI5G pods on the {master} cluster")
-    print(80*'*')
-    print(f"Nota: If you are done with the demo, do not forget to clean up the k8s {master} cluster by running:")
-    print(f"\t ./demo-oai.py [-m {master}] --cleanup")
-    return True
-
-def cleanup_demo(*, gateway, slicename, master,
-                 amf, spgwu, gnb, ue, verbose, dry_run ):
-    """
-    drain and delete FIT nodes from the k8s cluster and switch them off
-
-    Arguments:
-        slicename: the Unix login name (slice name) to enter the gateway
-        master: k8s master name
-        amf: FIT node number in which oai-amf will be deployed
-        spgwu: FIT node number in which spgwu-tiny will be deployed
-        gnb: FIT node number in which oai-gnb will be deployed
-        ue: FIT node number in which oai-nr-ue will be deployed
-    """
-
-    faraday = SshNode(hostname=gateway, username=slicename,
-                      verbose=verbose, formatter=TimeColonFormatter())
-
-    k8s_master = SshNode(gateway=faraday, hostname=master,
-                         username="r2lab",formatter=TimeColonFormatter(),
-                         verbose=verbose)
-
-    # the global scheduler
-    scheduler = Scheduler(verbose=verbose)
-
-    ##########
-    check_lease = SshJob(
+    stop_demo = SshJob(
         scheduler=scheduler,
-        node = faraday,
-        critical = True,
+        required=start_demo,
+        node=node_index[amf],
+        critical=True,
         verbose=verbose,
-        command = Run("rhubarbe leases --check"),
+        label=f"Delete OAI5G pods by calling demo-oai.sh stop from {amf}",
+        command=[
+            RunScript("demo-oai.sh", "stop", namespace),
+        ]
     )
 
-    green_light = check_lease
-
-    cleanup_k8s = [
+    cleanups = [
         SshJob(
             scheduler=scheduler,
-            required=green_light,
+            required=stop_demo,
             node=k8s_master,
             critical=False,
             verbose=verbose,
@@ -377,13 +188,10 @@ def cleanup_demo(*, gateway, slicename, master,
             command=[
                 Run("fit-drain-nodes; fit-delete-nodes"),
             ]
-        )
-    ]
-
-    switchoff_fit_nodes = [
+        ),
         SshJob(
             scheduler=scheduler,
-            required=check_lease,
+            required=stop_demo,
             node=faraday,
             critical=False,
             verbose=verbose,
@@ -393,11 +201,50 @@ def cleanup_demo(*, gateway, slicename, master,
             ]
         )
     ]
-    scheduler.check_cycles()
-    print(10*'*', 'See main scheduler in',
-          scheduler.export_as_pngfile("demo-oai-cleanup"))
 
-    # orchestration scheduler jobs
+    # debug: to inspect the full scenario
+    #scheduler.export_as_svgfile("demo-oai-complete")
+
+    # run subparts as requested
+    purpose = f"{mode} mode"
+    ko_message = f"{purpose} KO"
+
+    if mode == "cleanup":
+        for j in (job_load_images, *leave_joins, init_demo, start_demo, stop_demo):
+            scheduler.bypass_and_remove(j)
+        ko_message = f"Could not cleanup demo"
+        ok_message = f"Thank you, the k8s {master} cluster is now clean and FIT nodes have been switched off"
+    elif mode == "stop":
+        for j in (job_load_images, *leave_joins, init_demo, start_demo, *cleanups):
+            scheduler.bypass_and_remove(j)
+        ko_message = f"Could not delete OAI5G pods"
+        ok_message = f"""No more OAI5G pods on the {master} cluster
+Nota: If you are done with the demo, do not forget to clean up the k8s {master} cluster by running:
+\t ./demo-oai.py [-m {master}] --cleanup
+"""
+    elif mode == "start":
+        for j in (job_load_images, *leave_joins, init_demo, stop_demo, *cleanups):
+            scheduler.bypass_and_remove(j)
+        ok_message = f"OAI5G demo started, you can check kubectl logs on the {master} cluster"
+        ko_message = f"Could not launch OAI5G pods"
+    else:
+        for j in (stop_demo, *cleanups):
+            scheduler.bypass_and_remove(j)
+        if not load_images:
+            scheduler.bypass_and_remove(job_load_images)
+            purpose += f" (no image loaded)"
+        else:
+            purpose += f" WITH rhubarbe imaging the FIT nodes"
+        if not auto_start:
+            scheduler.bypass_and_remove(start_demo)
+            purpose += f" (NO auto start)"
+            ok_message = f"RUN SetUp OK. You can now start the demo by running ./demo-oai.py -m {master} --start"
+        else:
+            ok_message = f"RUN SetUp and demo started OK. You can now check the kubectl logs on the k8s {master} cluster."
+
+    scheduler.check_cycles()
+    print(10*'*', purpose, "\n", 'See main scheduler in', scheduler.export_as_svgfile("demo-oai-graph"))
+
     if verbose:
         scheduler.list()
 
@@ -405,15 +252,15 @@ def cleanup_demo(*, gateway, slicename, master,
         return True
 
     if not scheduler.orchestrate():
-        print(f"Could not cleanup demo: {scheduler.why()}")
+        print(f"{ko_message}: {scheduler.why()}")
         scheduler.debrief()
         return False
+    print(ok_message)
+
     print(80*'*')
-    print(f"Thank you, the k8s {master} cluster is now clean and FIT nodes have been switched off")
     return True
 
 HELP = """
-
 all the forms of the script assume there is a kubernetes cluster
 up and running on the chosen master node,
 and that the provided slicename holds the current lease on FIT/R2lab
@@ -421,7 +268,7 @@ and that the provided slicename holds the current lease on FIT/R2lab
 In its simplest form (no option given), the script will
   * load images on board of the FIT nodes
   * get the nodes to join that cluster
-  * and then deploy the k8s pods on that substrate (provided the --no-auto-start is not provided, in which case)
+  * and then deploy the k8s pods on that substrate (unless the --no-auto-start is not provided)
 
 Thanks to the --stop and --start option, one can relaunch
 the scenario without the need to re-image the selected FIT nodes;
@@ -520,24 +367,17 @@ def main():
 
     if args.start:
         print(f"**** Launch all pods of the oai5g demo on the k8s {args.master} cluster")
-        start_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
-                   amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
-                   namespace=args.namespace, dry_run=args.dry_run, verbose=args.verbose)
+        mode = "start"
     elif args.stop:
         print(f"delete all pods in the {args.namespace} namespace")
-        stop_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
-                  amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
-                  namespace=args.namespace, dry_run=args.dry_run, verbose=args.verbose)
-
+        mode = "stop"
     elif args.cleanup:
         print(f"**** Drain and remove FIT nodes from the {args.master} cluster, then swith off FIT nodes")
-        cleanup_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
-                     amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
-                     dry_run=args.dry_run, verbose=args.verbose)
+        mode = "cleanup"
     else:
         print(f"**** Prepare oai5g demo setup on the k8s {args.master} cluster with {args.slicename} slicename")
         print(f"OAI5G pods will run on the {args.namespace} k8s namespace")
-        print(f"Following FIT nodes will be used:")
+        print(f"the following FIT nodes will be used:")
         print(f"\t{r2lab_hostname(args.amf)} for oai-amf")
         print(f"\t{r2lab_hostname(args.spgwu)} for oai-spgwu-tiny")
         print(f"\t{r2lab_hostname(args.gnb)} for oai-gnb")
@@ -548,14 +388,12 @@ def main():
             print("Automatically start the demo after setup")
         else:
             print("Do not start the demo after setup")
-
-        run(gateway=default_gateway, slicename=args.slicename,
-            master=args.master, namespace=args.namespace,
-            auto_start=args.auto_start, load_images=args.load_images,
-            amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
-            dry_run=args.dry_run, verbose=args.verbose,
-            image=args.image,
-            )
+        mode = "run"
+    run(mode=mode, gateway=default_gateway, slicename=args.slicename,
+        master=args.master, namespace=args.namespace,
+        auto_start=args.auto_start, load_images=args.load_images,
+        amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
+        dry_run=args.dry_run, verbose=args.verbose, image=args.image)
 
 
 if __name__ == '__main__':
