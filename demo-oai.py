@@ -6,7 +6,7 @@ Then, it clones the oai5g-rfsim git directory on one of the 4 fit nodes and appl
 different patches on the various OAI5G charts to make them run on the SopNode platform.
 Finally, it deploys the different OAI5G pods through the same fit node.
 
-This version requires asynciojobs-0.16 or higher; if needed, upgrade with
+This version requires asynciojobs-0.16.3 or higher; if needed, upgrade with
 pip install -U asynciojobs
 
 As opposed to a former version that created 4 different schedulers,
@@ -16,6 +16,7 @@ and then remove some parts as requested by the script options
 """
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+import sched
 
 # the default for asyncssh is to be rather verbose
 from asyncssh.logging import set_log_level as asyncssh_set_log_level
@@ -83,18 +84,13 @@ def run(*, mode, gateway, slicename,
     # the global scheduler
     scheduler = Scheduler(verbose=verbose)
 
-    ##########
-    check_lease = SshJob(
-        scheduler=scheduler,
-        node = faraday,
-        critical = True,
-        verbose=verbose,
-        command = Run("rhubarbe leases --check"),
-    )
+    # (*) first compute the complete logic (but without check_lease)
+    # (*) then simplify/prune according to the mode
+    # (*) only then add check_lease in all modes
 
+    ##########
     job_load_images = SshJob(
         scheduler=scheduler,
-        required=check_lease,
         node=faraday,
         critical=True,
         verbose=verbose,
@@ -107,7 +103,6 @@ def run(*, mode, gateway, slicename,
 # for now, useless to switch off other nodes as we use RfSimulator
 #            SshJob(
 #                scheduler=scheduler,
-#                required=check_lease,
 #                node=faraday,
 #                critical=False,
 #                verbose=verbose,
@@ -210,26 +205,22 @@ def run(*, mode, gateway, slicename,
     ko_message = f"{purpose} KO"
 
     if mode == "cleanup":
-        for j in (job_load_images, *leave_joins, init_demo, start_demo, stop_demo):
-            scheduler.bypass_and_remove(j)
+        scheduler.keep_only_between(starts=cleanups)
         ko_message = f"Could not cleanup demo"
         ok_message = f"Thank you, the k8s {master} cluster is now clean and FIT nodes have been switched off"
     elif mode == "stop":
-        for j in (job_load_images, *leave_joins, init_demo, start_demo, *cleanups):
-            scheduler.bypass_and_remove(j)
+        scheduler.keep_only_between(starts=[stop_demo], ends=cleanups, keep_ends=False)
         ko_message = f"Could not delete OAI5G pods"
         ok_message = f"""No more OAI5G pods on the {master} cluster
 Nota: If you are done with the demo, do not forget to clean up the k8s {master} cluster by running:
 \t ./demo-oai.py [-m {master}] --cleanup
 """
     elif mode == "start":
-        for j in (job_load_images, *leave_joins, init_demo, stop_demo, *cleanups):
-            scheduler.bypass_and_remove(j)
+        scheduler.keep_only_between(starts=[start_demo], ends=[stop_demo], keep_ends=False)
         ok_message = f"OAI5G demo started, you can check kubectl logs on the {master} cluster"
         ko_message = f"Could not launch OAI5G pods"
     else:
-        for j in (stop_demo, *cleanups):
-            scheduler.bypass_and_remove(j)
+        scheduler.keep_only_between(ends=[stop_demo], keep_ends=False)
         if not load_images:
             scheduler.bypass_and_remove(job_load_images)
             purpose += f" (no image loaded)"
@@ -241,6 +232,20 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {master} 
             ok_message = f"RUN SetUp OK. You can now start the demo by running ./demo-oai.py -m {master} --start"
         else:
             ok_message = f"RUN SetUp and demo started OK. You can now check the kubectl logs on the k8s {master} cluster."
+
+
+    # add this job as a requirement for all scenarios
+    check_lease = SshJob(
+        scheduler=scheduler,
+        node = faraday,
+        critical = True,
+        verbose=verbose,
+        command = Run("rhubarbe leases --check"),
+    )
+    # this becomes a requirement for all entry jobs
+    for entry in scheduler.entry_jobs():
+        entry.requires(check_lease)
+
 
     scheduler.check_cycles()
     print(10*'*', purpose, "\n", 'See main scheduler in', scheduler.export_as_svgfile("demo-oai-graph"))
