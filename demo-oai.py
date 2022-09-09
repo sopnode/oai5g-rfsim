@@ -16,15 +16,13 @@ and then remove some parts as requested by the script options
 """
 
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-import sched
 
 # the default for asyncssh is to be rather verbose
 from asyncssh.logging import set_log_level as asyncssh_set_log_level
 
-from asynciojobs import Job, Scheduler, PrintJob
+from asynciojobs import Scheduler
 
-from apssh import (LocalNode, SshNode, SshJob, Run, RunString, RunScript,
-                   TimeColonFormatter, Service, Deferred, Capture, Variables)
+from apssh import YamlLoader, SshJob, Run
 
 # make sure to pip install r2lab
 from r2lab import r2lab_hostname, ListOfChoices, ListOfChoicesNullReset, find_local_embedded_script
@@ -65,140 +63,36 @@ def run(*, mode, gateway, slicename,
         image: R2lab k8s image name
     """
 
-    faraday = SshNode(hostname=gateway, username=slicename,
-                      verbose=verbose,
-                      formatter=TimeColonFormatter())
-
-    k8s_leader = SshNode(gateway=faraday, hostname=leader,
-                         username="r2lab",formatter=TimeColonFormatter(),
-                         verbose=verbose)
-
-    node_index = {
-        id: SshNode(gateway=faraday, hostname=r2lab_hostname(id),
-                    username="root",formatter=TimeColonFormatter(),
-                    verbose=verbose)
-        for id in (amf, spgwu, gnb, ue)
-    }
-    worker_ids = [amf, spgwu, gnb, ue]
-
-    # the global scheduler
-    scheduler = Scheduler(verbose=verbose)
+    jinja_variables = dict(
+        gateway=gateway,
+        leader=leader,
+        namespace=namespace,
+        nodes=dict(
+            amf=r2lab_hostname(amf),
+            spgwu=r2lab_hostname(spgwu),
+            gnb=r2lab_hostname(gnb),
+            ue=r2lab_hostname(ue),
+        ),
+        image=image,
+        verbose=verbose,
+    )
 
     # (*) first compute the complete logic (but without check_lease)
     # (*) then simplify/prune according to the mode
     # (*) only then add check_lease in all modes
 
-    ##########
-    job_load_images = SshJob(
-        scheduler=scheduler,
-        node=faraday,
-        critical=True,
-        verbose=verbose,
-        label = f"Load image {image} on worker nodes",
-        commands=[
-            Run("rhubarbe", "load", *worker_ids, "-i", image),
-            Run("rhubarbe", "wait", *worker_ids),
-        ],
-    )
-# for now, useless to switch off other nodes as we use RfSimulator
-#            SshJob(
-#                scheduler=scheduler,
-#                node=faraday,
-#                critical=False,
-#                verbose=verbose,
-#                label="turning off unused nodes",
-#                command=[
-#                    Run("rhubarbe bye --all "
-#                        + "".join(f"~{x} " for x in nodes))
-#                    Run("sleep 1")
-#                ]
-#            )
-
-    leave_joins = [ SshJob(
-        scheduler=scheduler,
-        required=job_load_images,
-        node=node,
-        critical=False,
-        verbose=verbose,
-        label=f"Reset data interface, ipip tunnels of worker node {r2lab_hostname(id)} and possibly leave {leader} k8s cluster",
-        command=[
-            Run("nmcli con down data; nmcli dev status; leave-tunnel"),
-            Run(f"kube-install.sh leave-cluster"),
-            Run(f"sleep 60"),
-            Run("nmcli con up data; nmcli dev status; join-tunnel"),
-            Run(f"kube-install.sh join-cluster r2lab@{leader}")
-        ]
-    ) for id, node in node_index.items() ]
-
-    # We launch the k8s demo from the FIT node used to run oai-amf
-    init_demo = SshJob(
-        scheduler=scheduler,
-        required=leave_joins,
-        node=node_index[amf],
-        critical=True,
-        verbose=verbose,
-        label=f"Clone oai-cn5g-fed, apply patches and run the k8s demo-oai script from {r2lab_hostname(amf)}",
-        command=[
-            Run("rm -rf oai-cn5g-fed; git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed"),
-            RunScript("config-oai5g-sopnode.sh", r2lab_hostname(amf),
-                        r2lab_hostname(spgwu), r2lab_hostname(gnb),
-                        r2lab_hostname(ue)),
-            RunScript("demo-oai.sh", "init"),
-        ]
-    )
-
-    start_demo = SshJob(
-        scheduler=scheduler,
-        required=init_demo,
-        node=node_index[amf],
-        critical=True,
-        verbose=verbose,
-        label=f"Launch OAI5G pods by calling demo-oai.sh start from {r2lab_hostname(amf)}",
-        command=[
-            RunScript("demo-oai.sh", "start", namespace, r2lab_hostname(amf),
-                    r2lab_hostname(spgwu), r2lab_hostname(gnb), r2lab_hostname(ue)),
-        ]
-    )
-
-    stop_demo = SshJob(
-        scheduler=scheduler,
-        required=start_demo,
-        node=node_index[amf],
-        critical=True,
-        verbose=verbose,
-        label=f"Delete OAI5G pods by calling demo-oai.sh stop from {amf}",
-        command=[
-            RunScript("demo-oai.sh", "stop", namespace),
-        ]
-    )
-
-    cleanups = [
-        SshJob(
-            scheduler=scheduler,
-            required=stop_demo,
-            node=k8s_leader,
-            critical=False,
-            verbose=verbose,
-            label=f"Drain and delete FIT nodes from the k8s {leader} cluster",
-            command=[
-                Run("fit-drain-nodes; fit-delete-nodes"),
-            ]
-        ),
-        SshJob(
-            scheduler=scheduler,
-            required=stop_demo,
-            node=faraday,
-            critical=False,
-            verbose=verbose,
-            label="turning off unused nodes",
-            command=[
-                Run(f"rhubarbe off {amf} {spgwu} {gnb} {ue}")
-            ]
-        )
-    ]
-
+    loader = YamlLoader("demo-oai.yaml.j2")
+    nodes_map, jobs_map, scheduler = loader.load_with_maps(jinja_variables, save_intermediate = verbose)
+    scheduler.verbose = verbose
     # debug: to inspect the full scenario
-    #scheduler.export_as_svgfile("demo-oai-complete")
+    scheduler.export_as_svgfile("demo-oai-complete-v2")
+
+
+    # retrieve jobs for the surgery part
+    load_images = jobs_map['load_images']
+    start_demo = jobs_map['start_demo']
+    stop_demo = jobs_map['stop_demo']
+    cleanups = jobs_map['cleanup1'], jobs_map['cleanup2']
 
     # run subparts as requested
     purpose = f"{mode} mode"
@@ -222,7 +116,7 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {leader} 
     else:
         scheduler.keep_only_between(ends=[stop_demo], keep_ends=False)
         if not load_images:
-            scheduler.bypass_and_remove(job_load_images)
+            scheduler.bypass_and_remove(load_images)
             purpose += f" (no image loaded)"
         else:
             purpose += f" WITH rhubarbe imaging the FIT nodes"
@@ -237,7 +131,7 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {leader} 
     # add this job as a requirement for all scenarios
     check_lease = SshJob(
         scheduler=scheduler,
-        node = faraday,
+        node = nodes_map['faraday'],
         critical = True,
         verbose=verbose,
         command = Run("rhubarbe leases --check"),
@@ -380,7 +274,7 @@ def main():
         print(f"**** Drain and remove FIT nodes from the {args.leader} cluster, then swith off FIT nodes")
         mode = "cleanup"
     else:
-        print(f"**** Demo: oai5g on the k8s cluster at {args.leader} with {args.slicename} slicename")
+        print(f"**** Prepare oai5g demo setup on the k8s {args.leader} cluster with {args.slicename} slicename")
         print(f"OAI5G pods will run on the {args.namespace} k8s namespace")
         print(f"the following FIT nodes will be used:")
         print(f"\t{r2lab_hostname(args.amf)} for oai-amf")
