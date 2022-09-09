@@ -84,8 +84,11 @@ def run(*, mode, gateway, slicename,
     loader = YamlLoader("demo-oai.yaml.j2")
     nodes_map, jobs_map, scheduler = loader.load_with_maps(jinja_variables, save_intermediate = verbose)
     scheduler.verbose = verbose
-    # debug: to inspect the full scenario
-    scheduler.export_as_svgfile("demo-oai-complete-v2")
+    # debug: to visually inspect the full scenario
+    if verbose:
+        complete_output = "demo-oai-complete"
+        print(f"Verbose: storing full scenario (before mode processing) in {complete_output}.svg")
+        scheduler.export_as_svgfile(complete_output)
 
 
     # retrieve jobs for the surgery part
