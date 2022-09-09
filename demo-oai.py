@@ -34,8 +34,8 @@ from r2lab import r2lab_hostname, ListOfChoices, ListOfChoicesNullReset, find_lo
 # sopnode-l1.inria.fr runs a production cluster, and
 # sopnode-w2.inria.fr runs an experimental/devel cluster
 
-default_master = 'sopnode-l1.inria.fr'
-devel_master = 'sopnode-w2.inria.fr'
+default_leader = 'sopnode-l1.inria.fr'
+devel_leader = 'sopnode-w2.inria.fr'
 default_image = 'kubernetes'
 
 default_amf = 1
@@ -49,7 +49,7 @@ default_namespace = 'oai5g'
 
 
 def run(*, mode, gateway, slicename,
-        master, namespace, auto_start, load_images,
+        leader, namespace, auto_start, load_images,
         amf, spgwu, gnb, ue,
         image, verbose, dry_run):
     """
@@ -57,7 +57,7 @@ def run(*, mode, gateway, slicename,
 
     Arguments:
         slicename: the Unix login name (slice name) to enter the gateway
-        master: k8s master host
+        leader: k8s leader host
         amf: FIT node number in which oai-amf will be deployed
         spgwu: FIT node number in which spgwu-tiny will be deployed
         gnb: FIT node number in which oai-gnb will be deployed
@@ -69,7 +69,7 @@ def run(*, mode, gateway, slicename,
                       verbose=verbose,
                       formatter=TimeColonFormatter())
 
-    k8s_master = SshNode(gateway=faraday, hostname=master,
+    k8s_leader = SshNode(gateway=faraday, hostname=leader,
                          username="r2lab",formatter=TimeColonFormatter(),
                          verbose=verbose)
 
@@ -120,13 +120,13 @@ def run(*, mode, gateway, slicename,
         node=node,
         critical=False,
         verbose=verbose,
-        label=f"Reset data interface, ipip tunnels of worker node {r2lab_hostname(id)} and possibly leave {master} k8s cluster",
+        label=f"Reset data interface, ipip tunnels of worker node {r2lab_hostname(id)} and possibly leave {leader} k8s cluster",
         command=[
             Run("nmcli con down data; nmcli dev status; leave-tunnel"),
             Run(f"kube-install.sh leave-cluster"),
             Run(f"sleep 60"),
             Run("nmcli con up data; nmcli dev status; join-tunnel"),
-            Run(f"kube-install.sh join-cluster r2lab@{master}")
+            Run(f"kube-install.sh join-cluster r2lab@{leader}")
         ]
     ) for id, node in node_index.items() ]
 
@@ -176,10 +176,10 @@ def run(*, mode, gateway, slicename,
         SshJob(
             scheduler=scheduler,
             required=stop_demo,
-            node=k8s_master,
+            node=k8s_leader,
             critical=False,
             verbose=verbose,
-            label=f"Drain and delete FIT nodes from the k8s {master} cluster",
+            label=f"Drain and delete FIT nodes from the k8s {leader} cluster",
             command=[
                 Run("fit-drain-nodes; fit-delete-nodes"),
             ]
@@ -207,17 +207,17 @@ def run(*, mode, gateway, slicename,
     if mode == "cleanup":
         scheduler.keep_only_between(starts=cleanups)
         ko_message = f"Could not cleanup demo"
-        ok_message = f"Thank you, the k8s {master} cluster is now clean and FIT nodes have been switched off"
+        ok_message = f"Thank you, the k8s {leader} cluster is now clean and FIT nodes have been switched off"
     elif mode == "stop":
         scheduler.keep_only_between(starts=[stop_demo], ends=cleanups, keep_ends=False)
         ko_message = f"Could not delete OAI5G pods"
-        ok_message = f"""No more OAI5G pods on the {master} cluster
-Nota: If you are done with the demo, do not forget to clean up the k8s {master} cluster by running:
-\t ./demo-oai.py [-m {master}] --cleanup
+        ok_message = f"""No more OAI5G pods on the {leader} cluster
+Nota: If you are done with the demo, do not forget to clean up the k8s {leader} cluster by running:
+\t ./demo-oai.py [--leader {leader}] --cleanup
 """
     elif mode == "start":
         scheduler.keep_only_between(starts=[start_demo], ends=[stop_demo], keep_ends=False)
-        ok_message = f"OAI5G demo started, you can check kubectl logs on the {master} cluster"
+        ok_message = f"OAI5G demo started, you can check kubectl logs on the {leader} cluster"
         ko_message = f"Could not launch OAI5G pods"
     else:
         scheduler.keep_only_between(ends=[stop_demo], keep_ends=False)
@@ -229,9 +229,9 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {master} 
         if not auto_start:
             scheduler.bypass_and_remove(start_demo)
             purpose += f" (NO auto start)"
-            ok_message = f"RUN SetUp OK. You can now start the demo by running ./demo-oai.py -m {master} --start"
+            ok_message = f"RUN SetUp OK. You can now start the demo by running ./demo-oai.py --leader {leader} --start"
         else:
-            ok_message = f"RUN SetUp and demo started OK. You can now check the kubectl logs on the k8s {master} cluster."
+            ok_message = f"RUN SetUp and demo started OK. You can now check the kubectl logs on the k8s {leader} cluster."
 
 
     # add this job as a requirement for all scenarios
@@ -267,7 +267,7 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {master} 
 
 HELP = """
 all the forms of the script assume there is a kubernetes cluster
-up and running on the chosen master node,
+up and running on the chosen leader node,
 and that the provided slicename holds the current lease on FIT/R2lab
 
 In its simplest form (no option given), the script will
@@ -330,11 +330,11 @@ def main():
         help="kubernetes image to load on nodes")
 
     parser.add_argument(
-        "-m", "--master", default=default_master,
-        help="kubernetes master node")
+        "--leader", default=default_leader,
+        help="kubernetes leader node")
     parser.add_argument(
         "--devel", action='store_true', default=False,
-        help=f"equivalent to --master {devel_master}"
+        help=f"equivalent to --leader {devel_leader}"
     )
 
     parser.add_argument("--amf", default=default_amf,
@@ -368,19 +368,19 @@ def main():
 
     args = parser.parse_args()
     if args.devel:
-        args.master = devel_master
+        args.leader = devel_leader
 
     if args.start:
-        print(f"**** Launch all pods of the oai5g demo on the k8s {args.master} cluster")
+        print(f"**** Launch all pods of the oai5g demo on the k8s {args.leader} cluster")
         mode = "start"
     elif args.stop:
         print(f"delete all pods in the {args.namespace} namespace")
         mode = "stop"
     elif args.cleanup:
-        print(f"**** Drain and remove FIT nodes from the {args.master} cluster, then swith off FIT nodes")
+        print(f"**** Drain and remove FIT nodes from the {args.leader} cluster, then swith off FIT nodes")
         mode = "cleanup"
     else:
-        print(f"**** Prepare oai5g demo setup on the k8s {args.master} cluster with {args.slicename} slicename")
+        print(f"**** Demo: oai5g on the k8s cluster at {args.leader} with {args.slicename} slicename")
         print(f"OAI5G pods will run on the {args.namespace} k8s namespace")
         print(f"the following FIT nodes will be used:")
         print(f"\t{r2lab_hostname(args.amf)} for oai-amf")
@@ -395,7 +395,7 @@ def main():
             print("Do not start the demo after setup")
         mode = "run"
     run(mode=mode, gateway=default_gateway, slicename=args.slicename,
-        master=args.master, namespace=args.namespace,
+        leader=args.leader, namespace=args.namespace,
         auto_start=args.auto_start, load_images=args.load_images,
         amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
         dry_run=args.dry_run, verbose=args.verbose, image=args.image)
