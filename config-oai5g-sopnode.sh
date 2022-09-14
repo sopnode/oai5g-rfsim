@@ -31,8 +31,8 @@ s|amfInterfaceNameForNGAP: "eth0" # If multus creation is true then net1 else et
 s|mnc: "99"|mnc: "95"|
 s|servedGuamiMnc0: "99"|servedGuamiMnc0: "95"|
 s|plmnSupportMnc: "99"|plmnSupportMnc: "95"|
-s|n3IPadd:.*|n3IPadd: "192.168.2.202"|
-s|n3Netmask:.*|n1Netmask: "24"|
+s|n3Ip:.*|n3Ip: "192.168.2.202"|
+s|n3Netmask:.*|n3Netmask: "24"|
 s|sgwS1uIf: "eth0"  # n3 interface, net1 if gNB is outside the cluster network and multus creation is true else eth0|sgwS1uIf: "net1"  # n3 interface, net1 if gNB is outside the cluster network and multus creation is true else eth0|
 s|pgwSgiIf: "eth0"  # net1 if gNB is outside the cluster network and multus creation is true else eth0 (important because it sends the traffic towards internet)|pgwSgiIf: "net1"  # net1 if gNB is outside the cluster network and multus creation is true else eth0 (important because it sends the traffic towards internet)|
 s|dnsIpv4Address: "172.21.3.100" # configure the dns for UE don't use Kubernetes DNS|dnsIpv4Address: "138.96.0.210" # configure the dns for UE don't use Kubernetes DNS|
@@ -143,11 +143,10 @@ s|hostInterface:.*|hostInterface: "enp0s25" # data Interface of the fit machine 
 s|n3IPadd:.*|n3IPadd: "192.168.2.204"|
 s|n3Netmask:.*|n3Netmask: "24"|
 s|mnc:.*|mnc: "95"    # check the information with AMF, SMF, UPF/SPGWU|
-s|amfIpAddress:.*|amfIpAddress: "192.168.2.201"  # amf ip-address or service-name|
 s|gnbNgaIfName:.*|gnbNgaIfName: "net1"  # net1 in case multus create is true that means another interface is created for ngap interface, n2 to communicate with amf|
-s|gnbNgaIpAddress:.*|gnbNgaIpAddress: "n2IPadd" # n2IPadd in case multus create is true|
+s|gnbNgaIpAddress:.*|gnbNgaIpAddress: "192.168.2.203" # n2IPadd in case multus create is true|
 s|gnbNguIfName:.*|gnbNguIfName: "net2"   #net2 in case multus create is true gtu interface for upf/spgwu|
-s|gnbNguIpAddress:.*|gnbNguIpAddress: "n3IPadd" # n3IPadd in case multus create is true|
+s|gnbNguIpAddress:.*|gnbNguIpAddress: "192.168.2.204" # n3IPadd in case multus create is true|
 s|nodeName:.*|nodeName: $fit_gnb|
 EOF
 
