@@ -73,20 +73,6 @@ function start() {
     echo "cd $OAI5G_RAN"
     cd "$OAI5G_RAN"
 
-    # Retrieve the IP address of the oai-amf pod and set it in the oai-gnb configuration
-    AMF_POD_NAME=$(kubectl -n$ns get pods -l app.kubernetes.io/name=oai-amf -o jsonpath="{.items[0].metadata.name}")
-    AMF_POD_IP=$(kubectl -n$ns get pod $AMF_POD_NAME --template '{{.status.podIP}}')
-    echo "oai-amf pod IP is $AMF_POD_IP"
-    conf_gnb_dir="$OAI5G_RAN/oai-gnb"
-    cat >/tmp/amf-values.sed <<EOF
-s|  amfIpAddress:.*|  amfIpAddress: "${AMF_POD_IP}"|
-EOF
-
-    echo "(Over)writing oai-gnb chart $conf_gnb_dir/values.yaml"
-    cp $conf_gnb_dir/values.yaml /tmp/values-orig-gnb.yaml
-    sed -f /tmp/amf-values.sed </tmp/values-orig-gnb.yaml >/tmp/values-gnb.yaml
-    cp /tmp/values-gnb.yaml $conf_gnb_dir/values.yaml
-
     echo "helm --namespace=$ns install oai-gnb oai-gnb/"
     helm --namespace=$ns install oai-gnb oai-gnb/
 

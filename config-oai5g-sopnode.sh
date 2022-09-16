@@ -143,10 +143,13 @@ s|hostInterface:.*|hostInterface: "enp0s25" # data Interface of the fit machine 
 s|n3IPadd:.*|n3IPadd: "192.168.2.204"|
 s|n3Netmask:.*|n3Netmask: "24"|
 s|mnc:.*|mnc: "95"    # check the information with AMF, SMF, UPF/SPGWU|
+s|useFqdn:.*|useFqdn: "false"|
+s|amfIpAddress:.*|amfIpAddress: "192.168.2.201"  # amf ip-address or service-name|
 s|gnbNgaIfName:.*|gnbNgaIfName: "net1"  # net1 in case multus create is true that means another interface is created for ngap interface, n2 to communicate with amf|
 s|gnbNgaIpAddress:.*|gnbNgaIpAddress: "192.168.2.203" # n2IPadd in case multus create is true|
 s|gnbNguIfName:.*|gnbNguIfName: "net2"   #net2 in case multus create is true gtu interface for upf/spgwu|
 s|gnbNguIpAddress:.*|gnbNguIpAddress: "192.168.2.204" # n3IPadd in case multus create is true|
+s|volumneName|volumeName|
 s|nodeName:.*|nodeName: $fit_gnb|
 EOF
 
