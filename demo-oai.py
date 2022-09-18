@@ -146,10 +146,10 @@ def run(*, gateway, slicename,
             label=f"Clone oai-cn5g-fed, apply patches and run the k8s demo-oai script from {r2lab_hostname(amf)}",
             command=[
                 Run("rm -rf oai-cn5g-fed; git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed"),
+                RunScript("demo-oai.sh", "init"),
                 RunScript("config-oai5g-sopnode.sh", r2lab_hostname(amf),
                           r2lab_hostname(spgwu), r2lab_hostname(gnb),
                           r2lab_hostname(ue)),
-                RunScript("demo-oai.sh", "init"),
             ]
         )
     ]

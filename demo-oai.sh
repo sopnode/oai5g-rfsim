@@ -21,7 +21,7 @@ function usage() {
 
 function init() {
     # Following should be done once per demo.
-
+    
     echo "init: ensure spray is installed and possibly create secret docker-registry"
     # Remove pulling limitations from docker-hub with anonymous account
     kubectl delete secret regcred || true
@@ -29,6 +29,9 @@ function init() {
 
     # Ensure that helm spray plugin is installed
     helm plugin install https://github.com/ThalesGroup/helm-spray || true
+
+    # Install patch command...
+    dnf -y install patch
 }
 
 function start() {
