@@ -108,8 +108,14 @@ EOF
     echo "Check UE logs"
     kubectl -n$ns logs $UE_POD_NAME -c nr-ue
 
-    echo "RUN OK."
-    echo "To clean up all pods, you can run the demo-oai.py --cleanup script. "
+    echo It takes long time for the UE to have its oaitun interface up...
+    echo Wait 3mn before running ping google.fr from the UE
+    sleep 180
+    echo "kubectl -n$ns exec -it $UE_POD_NAME -c nr-ue -- /bin/ping -c4 google.fr"
+    kubectl -n$ns exec -it $UE_POD_NAME -c nr-ue -- /bin/ping -c4 google.fr
+    
+    echo "end of RUN OK"
+    echo "To clean up all pods and let the k8s cluster clean, you should run the demo-oai.py --cleanup script. "
 }
 
 function stop() {
