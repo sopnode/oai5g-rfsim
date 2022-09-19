@@ -111,8 +111,8 @@ EOF
     echo It takes long time for the UE to have its oaitun interface up...
     echo Wait 3mn before running ping google.fr from the UE
     sleep 180
-    echo "kubectl -n$ns exec -it $UE_POD_NAME -c nr-ue -- /bin/ping -c4 google.fr"
-    kubectl -n$ns exec -it $UE_POD_NAME -c nr-ue -- /bin/ping -c4 google.fr
+    echo "kubectl -n$ns exec -it $UE_POD_NAME -c nr-ue -- /bin/ping --I oaitun_ue1 c4 google.fr"
+    kubectl -n$ns exec -it $UE_POD_NAME -c nr-ue -- /bin/ping -I oaitun_ue1 -c4 google.fr
     
     echo "end of RUN OK"
     echo "To clean up all pods and let the k8s cluster clean, you should run the demo-oai.py --cleanup script. "

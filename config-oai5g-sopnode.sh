@@ -31,6 +31,7 @@ s|amfInterfaceNameForNGAP: "eth0" # If multus creation is true then net1 else et
 s|mnc: "99"|mnc: "95"|
 s|servedGuamiMnc0: "99"|servedGuamiMnc0: "95"|
 s|plmnSupportMnc: "99"|plmnSupportMnc: "95"|
+s|operatorKey:.*|operatorKey: "8e27b6af0e692e750f32667a3b14605d"  # should be same as in subscriber database|  
 s|n3Ip:.*|n3Ip: "192.168.2.202"|
 s|n3Netmask:.*|n3Netmask: "24"|
 s|sgwS1uIf: "eth0"  # n3 interface, net1 if gNB is outside the cluster network and multus creation is true else eth0|sgwS1uIf: "net1"  # n3 interface, net1 if gNB is outside the cluster network and multus creation is true else eth0|
