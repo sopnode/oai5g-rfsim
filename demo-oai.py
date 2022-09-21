@@ -17,7 +17,7 @@ from asyncssh.logging import set_log_level as asyncssh_set_log_level
 
 from asynciojobs import Job, Scheduler, PrintJob
 
-from apssh import (LocalNode, SshNode, SshJob, Run, RunString, RunScript,
+from apssh import (LocalNode, SshNode, SshJob, Run, RunString, RunScript, Push,
                    TimeColonFormatter, Service, Deferred, Capture, Variables)
 
 # make sure to pip install r2lab
@@ -143,11 +143,13 @@ def run(*, gateway, slicename,
             node=node_index[amf],
             critical=True,
             verbose=verbose,
-            label=f"Clone oai-cn5g-fed, apply patches and run the k8s demo-oai script from {r2lab_hostname(amf)}",
+            label=f"Push oai-demo-ai.sh script, clone oai-cn5g-fed, apply patches and run the k8s demo-oai script from {r2lab_hostname(amf)}",
             command=[
+                Push(localpaths="demo-oai.sh", remotepath="/root/"),
+                Run("chmod a+x /root/demo-oai.sh"),
                 Run("rm -rf oai-cn5g-fed; git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed"),
                 RunScript("demo-oai.sh", "init"),
-                RunScript("config-oai5g-sopnode.sh", r2lab_hostname(amf),
+                RunScript("demo-oai.sh", "configure-all", r2lab_hostname(amf),
                           r2lab_hostname(spgwu), r2lab_hostname(gnb),
                           r2lab_hostname(ue)),
             ]
