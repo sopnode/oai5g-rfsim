@@ -92,39 +92,39 @@ def run(*, mode, gateway, slicename,
 
 
     # retrieve jobs for the surgery part
-    load_images = jobs_map['load_images']
-    start_demo = jobs_map['start_demo']
-    stop_demo = jobs_map['stop_demo']
-    cleanups = jobs_map['cleanup1'], jobs_map['cleanup2']
+    j_load_images = jobs_map['load-images']
+    j_start_demo = jobs_map['start-demo']
+    j_stop_demo = jobs_map['stop-demo']
+    j_cleanups = jobs_map['cleanup1'], jobs_map['cleanup2']
 
     # run subparts as requested
     purpose = f"{mode} mode"
     ko_message = f"{purpose} KO"
 
     if mode == "cleanup":
-        scheduler.keep_only_between(starts=cleanups)
+        scheduler.keep_only_between(starts=j_cleanups)
         ko_message = f"Could not cleanup demo"
         ok_message = f"Thank you, the k8s {leader} cluster is now clean and FIT nodes have been switched off"
     elif mode == "stop":
-        scheduler.keep_only_between(starts=[stop_demo], ends=cleanups, keep_ends=False)
+        scheduler.keep_only_between(starts=[j_stop_demo], ends=j_cleanups, keep_ends=False)
         ko_message = f"Could not delete OAI5G pods"
         ok_message = f"""No more OAI5G pods on the {leader} cluster
 Nota: If you are done with the demo, do not forget to clean up the k8s {leader} cluster by running:
 \t ./demo-oai.py [--leader {leader}] --cleanup
 """
     elif mode == "start":
-        scheduler.keep_only_between(starts=[start_demo], ends=[stop_demo], keep_ends=False)
+        scheduler.keep_only_between(starts=[j_start_demo], ends=[j_stop_demo], keep_ends=False)
         ok_message = f"OAI5G demo started, you can check kubectl logs on the {leader} cluster"
         ko_message = f"Could not launch OAI5G pods"
     else:
-        scheduler.keep_only_between(ends=[stop_demo], keep_ends=False)
+        scheduler.keep_only_between(ends=[j_stop_demo], keep_ends=False)
         if not load_images:
-            scheduler.bypass_and_remove(load_images)
+            scheduler.bypass_and_remove(j_load_images)
             purpose += f" (no image loaded)"
         else:
             purpose += f" WITH rhubarbe imaging the FIT nodes"
         if not auto_start:
-            scheduler.bypass_and_remove(start_demo)
+            scheduler.bypass_and_remove(j_start_demo)
             purpose += f" (NO auto start)"
             ok_message = f"RUN SetUp OK. You can now start the demo by running ./demo-oai.py --leader {leader} --start"
         else:
@@ -284,8 +284,9 @@ def main():
         print(f"\t{r2lab_hostname(args.spgwu)} for oai-spgwu-tiny")
         print(f"\t{r2lab_hostname(args.gnb)} for oai-gnb")
         print(f"\t{r2lab_hostname(args.ue)} for oai-nr-ue")
-        if args.load_images:
-            print(f"with k8s image {args.image} loaded")
+        print(f"FIT image loading:",
+              f"YES with {args.image}" if args.load_images
+              else "NO (use --load-images if needed)")
         if args.auto_start:
             print("Automatically start the demo after setup")
         else:
