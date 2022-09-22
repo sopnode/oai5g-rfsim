@@ -41,10 +41,15 @@ default_gateway  = 'faraday.inria.fr'
 default_slicename  = 'inria_sopnode'
 default_namespace = 'oai5g'
 
+default_regcred_name = "DUMMY_name"
+default_regcred_password = "DUMMY_password"
+default_regcred_email = "DUMMY_email"
+
 
 def run(*, gateway, slicename,
         master, namespace, auto_start, load_images,
         amf, spgwu, gnb, ue,
+        regcred_name, regcred_password, regcred_email,
         image, verbose, dry_run ):
     """
     run the OAI5G demo on the k8s cluster
@@ -145,6 +150,11 @@ def run(*, gateway, slicename,
             verbose=verbose,
             label=f"Push oai-demo-ai.sh script, clone oai-cn5g-fed, apply patches and run the k8s demo-oai script from {r2lab_hostname(amf)}",
             command=[
+                RunScript("configure-demo-oai.sh", "update",
+                          namespace, r2lab_hostname(amf),
+                          r2lab_hostname(spgwu), r2lab_hostname(gnb),
+                          r2lab_hostname(ue), regcred_name,
+                          regcred_password, regcred_email),
                 Push(localpaths="demo-oai.sh", remotepath="/root/"),
                 Run("chmod a+x /root/demo-oai.sh"),
                 Run("rm -rf oai-cn5g-fed; git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed"),
@@ -507,6 +517,18 @@ def main():
         "-s", "--slicename", default=default_slicename,
         help="slicename used to book FIT nodes")
 
+    parser.add_argument(
+        "--regcred_name", default=default_regcred_name,
+        help=f"registry credential name for docker pull")
+
+    parser.add_argument(
+        "--regcred_password", default=default_regcred_password,
+        help=f"registry credential password for docker pull")
+
+    parser.add_argument(
+        "--regcred_email", default=default_regcred_email,
+        help=f"registry credential email for docker pull")
+
     parser.add_argument("-v", "--verbose", default=False,
                         action='store_true', dest='verbose',
                         help="run script in verbose mode")
@@ -524,17 +546,20 @@ def main():
         print(f"**** Launch all pods of the oai5g demo on the k8s {args.master} cluster")
         start_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
                    amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
+                   regcred_name=args.regcred_name, regcred_password=args.regcred_password, regcred_email=args.regcred_email,
                    namespace=args.namespace, dry_run=args.dry_run, verbose=args.verbose)
     elif args.stop:
         print(f"delete all pods in the {args.namespace} namespace")
         stop_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
                   amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
+                  regcred_name=args.regcred_name, regcred_password=args.regcred_password, regcred_email=args.regcred_email,
                   namespace=args.namespace, dry_run=args.dry_run, verbose=args.verbose)
 
     elif args.cleanup:
         print(f"**** Drain and remove FIT nodes from the {args.master} cluster, then swith off FIT nodes")
         cleanup_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
                      amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
+                     regcred_name=args.regcred_name, regcred_password=args.regcred_password, regcred_email=args.regcred_email,
                      dry_run=args.dry_run, verbose=args.verbose)
     else:
         print(f"**** Prepare oai5g demo setup on the k8s {args.master} cluster with {args.slicename} slicename")
@@ -555,6 +580,8 @@ def main():
             master=args.master, namespace=args.namespace,
             auto_start=args.auto_start, load_images=args.load_images,
             amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
+            regcred_name=args.regcred_name, regcred_password=args.regcred_password,
+            regcred_email=args.regcred_email,
             dry_run=args.dry_run, verbose=args.verbose,
             image=args.image,
             )
