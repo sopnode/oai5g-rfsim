@@ -41,9 +41,9 @@ default_gateway  = 'faraday.inria.fr'
 default_slicename  = 'inria_sopnode'
 default_namespace = 'oai5g'
 
-default_regcred_name = "DUMMY_name"
-default_regcred_password = "DUMMY_password"
-default_regcred_email = "DUMMY_email"
+default_regcred_name = "r2labuser"
+default_regcred_password = "r2labuser-pwd"
+default_regcred_email = "r2labuser@turletti.com"
 
 
 def run(*, gateway, slicename,
