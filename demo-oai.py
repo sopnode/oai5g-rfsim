@@ -150,15 +150,16 @@ def run(*, gateway, slicename,
             verbose=verbose,
             label=f"Push oai-demo-ai.sh script, clone oai-cn5g-fed, apply patches and run the k8s demo-oai script from {r2lab_hostname(amf)}",
             command=[
+                Run("pwd;ls"),
+                Push(localpaths="demo-oai.sh", remotepath="/root/"),
+                Run("chmod a+x /root/demo-oai.sh"),
                 RunScript("configure-demo-oai.sh", "update",
                           namespace, r2lab_hostname(amf),
                           r2lab_hostname(spgwu), r2lab_hostname(gnb),
                           r2lab_hostname(ue), regcred_name,
                           regcred_password, regcred_email),
-                Push(localpaths="demo-oai.sh", remotepath="/root/"),
-                Run("chmod a+x /root/demo-oai.sh"),
                 Run("rm -rf oai-cn5g-fed; git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed"),
-                RunScript("demo-oai.sh", "init"),
+                RunScript("demo-oai.sh", "init", namespace),
                 RunScript("demo-oai.sh", "configure-all", r2lab_hostname(amf),
                           r2lab_hostname(spgwu), r2lab_hostname(gnb),
                           r2lab_hostname(ue)),
@@ -546,20 +547,17 @@ def main():
         print(f"**** Launch all pods of the oai5g demo on the k8s {args.master} cluster")
         start_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
                    amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
-                   regcred_name=args.regcred_name, regcred_password=args.regcred_password, regcred_email=args.regcred_email,
                    namespace=args.namespace, dry_run=args.dry_run, verbose=args.verbose)
     elif args.stop:
         print(f"delete all pods in the {args.namespace} namespace")
         stop_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
                   amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
-                  regcred_name=args.regcred_name, regcred_password=args.regcred_password, regcred_email=args.regcred_email,
                   namespace=args.namespace, dry_run=args.dry_run, verbose=args.verbose)
 
     elif args.cleanup:
         print(f"**** Drain and remove FIT nodes from the {args.master} cluster, then swith off FIT nodes")
         cleanup_demo(gateway=default_gateway, slicename=args.slicename, master=args.master,
                      amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
-                     regcred_name=args.regcred_name, regcred_password=args.regcred_password, regcred_email=args.regcred_email,
                      dry_run=args.dry_run, verbose=args.verbose)
     else:
         print(f"**** Prepare oai5g demo setup on the k8s {args.master} cluster with {args.slicename} slicename")

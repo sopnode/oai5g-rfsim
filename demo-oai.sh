@@ -68,7 +68,7 @@ EOF
     perl -i -p0e "s/nodeSelector: \{\}\noai-smf:/nodeName: \"$fit_spgwu\"\n  nodeSelector: \{\}\noai-smf:/s" "$OAI5G_BASIC"/values.yaml
 
     diff /tmp/basic_values.yaml-orig "$OAI5G_BASIC"/values.yaml
-    cd "OAI5G_BASIC"
+    cd "$OAI5G_BASIC"
     echo "helm dependency update"
     helm dependency update
 }
@@ -237,6 +237,14 @@ EOF
 
 
 function configure-all() {
+    fit_amf=$1
+    shift
+    fit_spgwu=$1
+    shift
+    fit_gnb=$1
+    shift
+    fit_ue=$1
+    shift
 
     echo "Applying SopNode patches to OAI5G located on "$HOME"/oai-cn5g-fed"
     echo -e "\t with oai-amf running on $fit_amf"
@@ -254,12 +262,14 @@ function configure-all() {
 
 
 function init() {
+    ns=$1
+    shift
 
     # init function should be run once per demo.
     echo "init: ensure spray is installed and possibly create secret docker-registry"
     # Remove pulling limitations from docker-hub with anonymous account
-    kubectl delete secret regcred || true
-    kubectl create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=DUMMY_name --docker-password=DUMMY_pwd --docker-email=DUMMY_email || true
+    kubectl -n$ns delete secret regcred || true
+    kubectl -n$ns create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=DUMMY_name --docker-password=DUMMY_password --docker-email=DUMMY_email || true
 
     # Ensure that helm spray plugin is installed
     helm plugin install https://github.com/ThalesGroup/helm-spray || true
@@ -479,8 +489,8 @@ if test $# -lt 1; then
     usage
 else
     if [ "$1" == "init" ]; then
-        if test $# -eq 1; then
-            init
+        if test $# -eq 2; then
+            init $2
         else
             usage
         fi

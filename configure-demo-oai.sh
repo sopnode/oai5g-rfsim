@@ -25,15 +25,17 @@ EOF
 
     cp demo-oai.sh /tmp/demo-oai-orig.sh
     echo "Configuring demo-oai.sh script with possible new R2lab FIT nodes and registry credentials"
-    sed -f /tmp/demo-oai.sed < /tmp/demo-oai-orig.sh > /tmp/demo-oai.sh
-
-    diff /tmp/demo-oai-orig.sh /tmp/demo-oai.sh
+    sed -f /tmp/demo-oai.sed < /tmp/demo-oai-orig.sh > /root/demo-oai.sh
+    diff /tmp/demo-oai-orig.sh /root/demo-oai.sh
 }
 
-if test $# -lt 1; then
+if test $# -ne 9; then
+    echo "val = $#, val2= $@, val3= "
     echo "USAGE: configure-demo-oai namespace fit_amf fit_spgwu fit_gnb fit_ue regcred_name regcred_password regcred_email "
     exit 1
 else
+    shift
     echo "Running update with inputs: $@"
     update "$@"
+    exit 0
 fi
