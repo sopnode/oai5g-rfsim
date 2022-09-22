@@ -48,7 +48,7 @@ default_regcred_email = "DUMMY_email"
 
 def run(*, gateway, slicename,
         master, namespace, auto_start, load_images,
-        amf, spgwu, gnb, ue,
+        reset_k8s, amf, spgwu, gnb, ue,
         regcred_name, regcred_password, regcred_email,
         image, verbose, dry_run ):
     """
@@ -120,31 +120,31 @@ def run(*, gateway, slicename,
 #                ]
 #            )
     ]
-
-    leave_joins = [
-        SshJob(
-            scheduler=scheduler,
-            required=green_light,
-            node=node,
-            critical=False,
-            verbose=verbose,
-            label=f"Reset data interface, ipip tunnels of worker node {r2lab_hostname(id)} and possibly leave {master} k8s cluster",
-            command=[
-                Run("nmcli con down data; nmcli dev status; leave-tunnel"),
-                Run(f"kube-install.sh leave-cluster"),
-                Run(f"sleep 60"),
-                Run("nmcli con up data; nmcli dev status; join-tunnel"),
-                Run(f"kube-install.sh join-cluster r2lab@{master}")
-            ]
-        ) for id, node in node_index.items()
-    ]
-
+    if reset_k8s:
+        leave_joins = [
+            SshJob(
+                scheduler=scheduler,
+                required=green_light,
+                node=node,
+                critical=False,
+                verbose=verbose,
+                label=f"Reset data interface, ipip tunnels of worker node {r2lab_hostname(id)} and possibly leave {master} k8s cluster",
+                command=[
+                    Run("nmcli con down data; nmcli dev status; leave-tunnel"),
+                    Run(f"kube-install.sh leave-cluster"),
+                    Run(f"sleep 60"),
+                    Run("nmcli con up data; nmcli dev status; join-tunnel"),
+                    Run(f"kube-install.sh join-cluster r2lab@{master}")
+                ]
+            ) for id, node in node_index.items()
+        ]
+        green_light = leave_joins
 
     # We launch the k8s demo from the FIT node used to run oai-amf
     run_setup = [
         SshJob(
             scheduler=scheduler,
-            required=leave_joins,
+            required=green_light,
             node=node_index[amf],
             critical=True,
             verbose=verbose,
@@ -483,6 +483,11 @@ def main():
         help="default is to start the oai-demo after setup")
 
     parser.add_argument(
+        "-N", "--no-reset-k8s", default=True,
+        action='store_false', dest='reset_k8s',
+        help="default is to reset k8s before setup")
+
+    parser.add_argument(
         "-l", "--load-images", default=False, action='store_true',
         help="load the kubernetes image on the nodes before anything else")
 
@@ -577,6 +582,7 @@ def main():
         run(gateway=default_gateway, slicename=args.slicename,
             master=args.master, namespace=args.namespace,
             auto_start=args.auto_start, load_images=args.load_images,
+            reset_k8s=args.reset_k8s,
             amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
             regcred_name=args.regcred_name, regcred_password=args.regcred_password,
             regcred_email=args.regcred_email,

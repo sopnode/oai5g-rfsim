@@ -268,6 +268,7 @@ function init() {
     # init function should be run once per demo.
     echo "init: ensure spray is installed and possibly create secret docker-registry"
     # Remove pulling limitations from docker-hub with anonymous account
+    kubectl create namespace $ns || true
     kubectl -n$ns delete secret regcred || true
     kubectl -n$ns create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=DUMMY_name --docker-password=DUMMY_password --docker-email=DUMMY_email || true
 
