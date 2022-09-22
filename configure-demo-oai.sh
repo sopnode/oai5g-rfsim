@@ -18,9 +18,9 @@ s|DEF_FIT_AMF=.*|DEF_FIT_AMF="${fit_amf}"|
 s|DEF_FIT_SPGWU=.*|DEF_FIT_SPGWU="${fit_spgwu}"|
 s|DEF_FIT_GNB=.*|DEF_FIT_GNB="${fit_gnb}"|
 s|DEF_FIT_UE=.*|DEF_FIT_UE="${fit_ue}"|
-s|DUMMY_name|${regcred_name}|
-s|DUMMY_password|${regcred_password}|
-s|DUMMY_email|${regcred_email}|
+s|username=r2labuser|username=${regcred_name}|
+s|password=r2labuser-pwd|password=${regcred_password}|
+s|email=r2labuser@turletti.com|email=${regcred_email}|
 EOF
 
     cp demo-oai.sh /tmp/demo-oai-orig.sh

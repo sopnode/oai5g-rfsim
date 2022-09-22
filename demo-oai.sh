@@ -270,7 +270,7 @@ function init() {
     # Remove pulling limitations from docker-hub with anonymous account
     kubectl create namespace $ns || true
     kubectl -n$ns delete secret regcred || true
-    kubectl -n$ns create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=DUMMY_name --docker-password=DUMMY_password --docker-email=DUMMY_email || true
+    kubectl -n$ns create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=r2labuser --docker-password=r2labuser-pwd --docker-email=r2labuser@turletti.com || true
 
     # Ensure that helm spray plugin is installed
     helm plugin install https://github.com/ThalesGroup/helm-spray || true
