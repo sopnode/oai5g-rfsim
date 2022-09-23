@@ -22,7 +22,7 @@ from asyncssh.logging import set_log_level as asyncssh_set_log_level
 
 from asynciojobs import Scheduler
 
-from apssh import YamlLoader, SshJob, Run
+from apssh import YamlLoader, SshJob, Run, Push
 
 # make sure to pip install r2lab
 from r2lab import r2lab_hostname, ListOfChoices, ListOfChoicesNullReset, find_local_embedded_script
@@ -45,10 +45,15 @@ default_gateway  = 'faraday.inria.fr'
 default_slicename  = 'inria_sopnode'
 default_namespace = 'oai5g'
 
+default_regcred_name = "r2labuser"
+default_regcred_password = "r2labuser-pwd"
+default_regcred_email = "r2labuser@turletti.com"
+
 
 def run(*, mode, gateway, slicename,
         leader, namespace, auto_start, load_images,
-        amf, spgwu, gnb, ue,
+        reset_k8s, amf, spgwu, gnb, ue,
+        regcred_name, regcred_password, regcred_email,        
         image, verbose, dry_run):
     """
     run the OAI5G demo on the k8s cluster
@@ -72,6 +77,11 @@ def run(*, mode, gateway, slicename,
             spgwu=r2lab_hostname(spgwu),
             gnb=r2lab_hostname(gnb),
             ue=r2lab_hostname(ue),
+        ),
+        regcred=dict(
+            name=regcred_name,
+            password=regcred_password,
+            email=regcred_email,
         ),
         image=image,
         verbose=verbose,
@@ -219,6 +229,11 @@ def main():
         help="default is to start the oai-demo after setup")
 
     parser.add_argument(
+        "-N", "--no-reset-k8s", default=True,
+	action='store_false', dest='reset_k8s',
+	help="default is to reset k8s before setup")
+
+    parser.add_argument(
         "-l", "--load-images", default=False, action='store_true',
         help="load the kubernetes image on the nodes before anything else")
 
@@ -253,6 +268,18 @@ def main():
     parser.add_argument(
         "-s", "--slicename", default=default_slicename,
         help="slicename used to book FIT nodes")
+
+    parser.add_argument(
+        "--regcred_name", default=default_regcred_name,
+        help=f"registry credential name for docker pull")
+
+    parser.add_argument(
+        "--regcred_password", default=default_regcred_password,
+        help=f"registry credential password for docker pull")
+
+    parser.add_argument(
+        "--regcred_email", default=default_regcred_email,
+        help=f"registry credential email for docker pull")
 
     parser.add_argument("-v", "--verbose", default=False,
                         action='store_true', dest='verbose',
@@ -295,7 +322,11 @@ def main():
     run(mode=mode, gateway=default_gateway, slicename=args.slicename,
         leader=args.leader, namespace=args.namespace,
         auto_start=args.auto_start, load_images=args.load_images,
+        reset_k8s=args.reset_k8s,
         amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
+        regcred_name=args.regcred_name,
+        regcred_password=args.regcred_password,
+        regcred_email=args.regcred_email,
         dry_run=args.dry_run, verbose=args.verbose, image=args.image)
 
 

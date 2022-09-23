@@ -3,6 +3,7 @@
 # {{leader}} - typically 'sopnode-l1.inria.fr'
 # {{namespace}} - typically 'oai5g'
 # {{nodes}} - typically {'amf': 'fit01', 'spgwu': 'fit02', 'gnb' : 'fit03', 'ue': 'fit04'}
+# {{regcred}} - typically {'name': 'jdoe', 'password': 'XX', 'email': 'jdoe@y.fr'}
 # {{image}} - typically 'kubernetes'
 # {{verbose}} - typically 'True' or "False"
 
@@ -83,17 +84,26 @@ jobs:
     critical: True
     verbose: {{verbose}}
     label: >
-      Clone oai-cn5g-fed, apply patches
+      Push demo-oai.sh script on {{nodes.amf}},
+      clone oai-cn5g-fed, apply patches,
       and run the k8s demo-oai script from {{nodes.amf}}
     commands:
+      - type: Push
+        localpaths:
+          - demo-oai.sh
+        remotepath: /root/
+      - type: Run
+        command: chmod a+x /root/demo-oai.sh
+      - type: RunScript
+        command: configure-demo-oai.sh {{namespace}} {%for h in nodes.values()%}{{h}} {%endfor %} {%for x in regcred.values()%}{{x}} {%endfor %}
       - type: Run
         command: >
           rm -rf oai-cn5g-fed;
           git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed
       - type: RunScript
-        command: config-oai5g-sopnode.sh {%for h in nodes.values()%}{{h}} {% endfor %}
-      - type: RunScript
         command: demo-oai.sh init
+      - type: RunScript
+        command: demo-oai.sh configure-all {%for h in nodes.values()%}{{h}} {% endfor %}
 
   - id: start-demo
     required: init-demo
