@@ -49,7 +49,7 @@ default_namespace = 'oai5g'
 def run(*, mode, gateway, slicename,
         leader, namespace, auto_start, load_images,
         amf, spgwu, gnb, ue,
-        image, verbose, dry_run):
+        image, verbose, dry_run, k8s_reset):
     """
     run the OAI5G demo on the k8s cluster
 
@@ -96,6 +96,7 @@ def run(*, mode, gateway, slicename,
     j_start_demo = jobs_map['start-demo']
     j_stop_demo = jobs_map['stop-demo']
     j_cleanups = jobs_map['cleanup1'], jobs_map['cleanup2']
+    j_leave_joins = [jobs_map[k] for k in jobs_map if k.startswith('leave-join')]
 
     # run subparts as requested
     purpose = f"{mode} mode"
@@ -129,7 +130,12 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {leader} 
             ok_message = f"RUN SetUp OK. You can now start the demo by running ./demo-oai.py --leader {leader} --start"
         else:
             ok_message = f"RUN SetUp and demo started OK. You can now check the kubectl logs on the k8s {leader} cluster."
-
+        if not k8s_reset:
+            for job in j_leave_joins:
+                scheduler.bypass_and_remove(job)
+            purpose += " (k8s reset SKIPPED)"
+        else:
+            purpose += " (k8s RESET)"
 
     # add this job as a requirement for all scenarios
     check_lease = SshJob(
@@ -219,6 +225,11 @@ def main():
         help="default is to start the oai-demo after setup")
 
     parser.add_argument(
+        "-k", "--no-k8s-reset", default=True,
+        action='store_false', dest='k8s_reset',
+        help="default is to reset the k8s cluster")
+
+    parser.add_argument(
         "-l", "--load-images", default=False, action='store_true',
         help="load the kubernetes image on the nodes before anything else")
 
@@ -296,7 +307,8 @@ def main():
         leader=args.leader, namespace=args.namespace,
         auto_start=args.auto_start, load_images=args.load_images,
         amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
-        dry_run=args.dry_run, verbose=args.verbose, image=args.image)
+        dry_run=args.dry_run, verbose=args.verbose, image=args.image,
+        k8s_reset=args.k8s_reset)
 
 
 if __name__ == '__main__':

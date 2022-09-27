@@ -15,3 +15,4 @@ store-svg "load-noauto" -l -a
 store-svg "start" --start
 store-svg "stop" --stop
 store-svg "cleanup" --cleanup
+store-svg "noreset" -k
