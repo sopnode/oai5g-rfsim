@@ -139,6 +139,7 @@ The main options are:
 
   * `--no_auto_start` to not launch the OAI5G pods by default.
   * `-s slicename` to provide the slicename that you used to book the platform, which by default is *`inria_sopnode`*.
+  * `-k` to not restart the k8s cluster when reconfiguring charts. This will avoid the time consuming leave-join steps for FIT worker nodes.
   * as well as `-i imagename` to use an alternative image name - default is *`kubernetes`*.
 
 For instance, if your slicename is `inria_sc` and you have not yet loaded the k8s images on the FIT nodes, to run all the steps described above, you only have to run the following command on your laptop:
@@ -149,10 +150,10 @@ $ ./demo-oai.py -s inria_sc
 
 We added the two following options to be used only when the demo-oai.py script has already run at least once, i.e., when FIT nodes have joined the k8s cluster and OAI5G setup is ready for R2lab:
 
-* `--stop` to delete all OAI5G pods. 
-* `--start` to launch again all OAI5G pods.
+* `--stop` to remove all OAI5G pods. 
+* `--start` to launch again all OAI5G pods with same configuration as before.
 
-The same can be done directly on *fit01* worker node:
+The two above steps can also be done directly on *fit01* worker node:
 
 ```
 root@fit01# ./demo-oai.sh stop
@@ -202,6 +203,17 @@ PING google.fr (172.217.22.131) from 12.1.1.81 oaitun_ue1: 56(84) bytes of data.
 4 packets transmitted, 4 received, 0% packet loss, time 3004ms
 rtt min/avg/max/mdev = 25.581/32.838/37.361/4.453 ms
 ```
+
+Now, assume that you want to restart the demo with some changes in the CN chart configuration, and test it on another namespace, say *oai5g_v2*, the sequence of steps will be:
+
+
+* Stop the previous test ``` ./demo-oai.py --stop```
+* Make your changes on *fit01* in configuration file */root/demo-oai.sh*. (If the CN parameters you want to change are not in script */root/demo-oai.sh*, you can directly change chart file */root/oai-cn5g-fed/charts/oai-5g-core/oai-5g-basic/values.yaml*.) Then run on your laptop:
+* ``` ./demo-oai.py --namespace oai5g_v2 -k```
+
+The latter command will take into account your changes to reconfigure the charts, and will then launch the OAI5G pods on the *oai5g_v2* namespace. The "-k" option is used to prevent FIT worker nodes to leave and join the k8s cluster, which takes about 2 minutes to complete...
+
+Note that we don't use "--start" option in this case as this option skips the reconfiguration step. 
 
 
 ### Cleanup
