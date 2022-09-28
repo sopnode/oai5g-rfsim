@@ -52,7 +52,7 @@ default_regcred_email = "r2labuser@turletti.com"
 
 def run(*, mode, gateway, slicename,
         leader, namespace, auto_start, load_images,
-        reset_k8s, amf, spgwu, gnb, ue,
+        k8s_reset, amf, spgwu, gnb, ue,
         regcred_name, regcred_password, regcred_email,        
         image, verbose, dry_run):
     """
@@ -106,6 +106,7 @@ def run(*, mode, gateway, slicename,
     j_start_demo = jobs_map['start-demo']
     j_stop_demo = jobs_map['stop-demo']
     j_cleanups = jobs_map['cleanup1'], jobs_map['cleanup2']
+    j_leave_joins = [jobs_map[k] for k in jobs_map if k.startswith('leave-join')]
 
     # run subparts as requested
     purpose = f"{mode} mode"
@@ -139,6 +140,12 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {leader} 
             ok_message = f"RUN SetUp OK. You can now start the demo by running ./demo-oai.py --leader {leader} --start"
         else:
             ok_message = f"RUN SetUp and demo started OK. You can now check the kubectl logs on the k8s {leader} cluster."
+        if not k8s_reset:
+            for job in j_leave_joins:
+                scheduler.bypass_and_remove(job)
+            purpose += " (k8s reset SKIPPED)"
+        else:
+            purpose += " (k8s RESET)"
 
 
     # add this job as a requirement for all scenarios
@@ -229,8 +236,8 @@ def main():
         help="default is to start the oai-demo after setup")
 
     parser.add_argument(
-        "-N", "--no-reset-k8s", default=True,
-	action='store_false', dest='reset_k8s',
+        "-k", "--no-k8s-reset", default=True,
+	action='store_false', dest='k8s_reset',
 	help="default is to reset k8s before setup")
 
     parser.add_argument(
@@ -322,12 +329,12 @@ def main():
     run(mode=mode, gateway=default_gateway, slicename=args.slicename,
         leader=args.leader, namespace=args.namespace,
         auto_start=args.auto_start, load_images=args.load_images,
-        reset_k8s=args.reset_k8s,
         amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
         regcred_name=args.regcred_name,
         regcred_password=args.regcred_password,
         regcred_email=args.regcred_email,
-        dry_run=args.dry_run, verbose=args.verbose, image=args.image)
+        dry_run=args.dry_run, verbose=args.verbose, image=args.image,
+        k8s_reset=args.k8s_reset)
 
 
 if __name__ == '__main__':

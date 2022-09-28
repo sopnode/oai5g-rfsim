@@ -31,7 +31,7 @@ EOF
 
 if test $# -ne 9; then
     echo "val = $#, val2= $@, val3= "
-    echo "USAGE: configure-demo-oai namespace fit_amf fit_spgwu fit_gnb fit_ue regcred_name regcred_password regcred_email "
+    echo "USAGE: configure-demo-oai.sh namespace fit_amf fit_spgwu fit_gnb fit_ue regcred_name regcred_password regcred_email "
     exit 1
 else
     shift

@@ -91,19 +91,20 @@ jobs:
       - type: Push
         localpaths:
           - demo-oai.sh
+          - configure-demo-oai.sh
         remotepath: /root/
       - type: Run
-        command: chmod a+x /root/demo-oai.sh
-      - type: RunScript
-        command: configure-demo-oai.sh {{namespace}} {%for h in nodes.values()%}{{h}} {%endfor %} {%for x in regcred.values()%}{{x}} {%endfor %}
+        command: chmod a+x demo-oai.sh configure-demo-oai.sh
+      - type: Run
+        command: /root/configure-demo-oai.sh update {{namespace}} {%for h in nodes.values()%}{{h}} {%endfor %} {%for x in regcred.values()%}{{x}} {%endfor %}
       - type: Run
         command: >
           rm -rf oai-cn5g-fed;
           git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed
-      - type: RunScript
-        command: demo-oai.sh init
-      - type: RunScript
-        command: demo-oai.sh configure-all {%for h in nodes.values()%}{{h}} {% endfor %}
+      - type: Run
+        command: /root/demo-oai.sh init {{namespace}}
+      - type: Run
+        command: /root/demo-oai.sh configure-all {%for h in nodes.values()%}{{h}} {% endfor %}
 
   - id: start-demo
     required: init-demo
@@ -113,8 +114,8 @@ jobs:
     label: >
       Launch OAI5G pods by calling demo-oai.sh start from {{amf}}
     commands:
-      - type: RunScript
-        command: demo-oai.sh start {{namespace}} {%for h in nodes.values()%}{{h}} {% endfor %}
+      - type: Run
+        command: /root/demo-oai.sh start {{namespace}} {%for h in nodes.values()%}{{h}} {% endfor %}
 
   - id: stop-demo
     required: start-demo
@@ -124,8 +125,8 @@ jobs:
     label: >
       Delete OAI5G pods by calling demo-oai.sh stop from {{nodes.amf}}
     commands:
-      - type: RunScript
-        command: demo-oai.sh stop {{namespace}}
+      - type: Run
+        command: /root/demo-oai.sh stop {{namespace}}
 
   - id: cleanup1
     required: stop-demo
