@@ -9,6 +9,7 @@ function store-svg() {
 }
 
 store-svg "noopt"
+store-svg "noopt-nok8reset" -k
 store-svg "load" -l
 store-svg "noauto" -a
 store-svg "load-noauto" -l -a
