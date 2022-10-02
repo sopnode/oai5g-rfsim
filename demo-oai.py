@@ -144,8 +144,16 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {leader} 
         if not load_images:
             scheduler.bypass_and_remove(j_load_images)
             purpose += f" (no image loaded)"
+            scheduler.bypass_and_remove(j_prepare_quectels)
+            purpose += f" (no quectel node prepared)"
         else:
             purpose += f" WITH rhubarbe imaging the FIT nodes"
+            if not quectel:
+                scheduler.bypass_and_remove(j_prepare_quectels)
+                purpose += f" (no quectel node prepared)"
+            else:
+                purpose += f" (quectel node(s) prepared)"
+                
         if not auto_start:
             scheduler.bypass_and_remove(j_start_demo)
             purpose += f" (NO auto start)"
@@ -326,8 +334,8 @@ def main():
     if args.quectel_nodes:
         for quectel in args.quectel_nodes:
             print(f"Using Quectel UE on node {quectel}")
-        else:
-            print("No Quectel UE involved")
+    else:
+        print("No Quectel UE involved")
             
     if args.start:
         print(f"**** Launch all pods of the oai5g demo on the k8s {args.leader} cluster")
