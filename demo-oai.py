@@ -35,11 +35,13 @@ from r2lab import r2lab_hostname, ListOfChoices, ListOfChoicesNullReset, find_lo
 default_leader = 'sopnode-l1.inria.fr'
 devel_leader = 'sopnode-w2.inria.fr'
 default_image = 'kubernetes'
+default_quectel_image = "quectel-wwan0"
 
 default_amf = 1
 default_spgwu = 2
 default_gnb = 3
 default_ue = 9
+default_quectel_nodes = []
 
 default_gateway  = 'faraday.inria.fr'
 default_slicename  = 'inria_sopnode'
@@ -52,9 +54,9 @@ default_regcred_email = "r2labuser@turletti.com"
 
 def run(*, mode, gateway, slicename,
         leader, namespace, auto_start, load_images,
-        k8s_reset, amf, spgwu, gnb, ue,
+        k8s_reset, amf, spgwu, gnb, ue, quectel_nodes, 
         regcred_name, regcred_password, regcred_email,        
-        image, verbose, dry_run):
+        image, quectel_image, verbose, dry_run):
     """
     run the OAI5G demo on the k8s cluster
 
@@ -65,9 +67,13 @@ def run(*, mode, gateway, slicename,
         spgwu: FIT node number in which spgwu-tiny will be deployed
         gnb: FIT node number in which oai-gnb will be deployed
         ue: FIT node number in which oai-nr-ue will be deployed
+        quectel_nodes: list of indices of quectel UE nodes to use 
         image: R2lab k8s image name
     """
 
+    quectel_ids = quectel_nodes[:]
+    quectel = len(quectel_ids) > 0
+    
     jinja_variables = dict(
         gateway=gateway,
         leader=leader,
@@ -78,12 +84,14 @@ def run(*, mode, gateway, slicename,
             gnb=r2lab_hostname(gnb),
             ue=r2lab_hostname(ue),
         ),
+        quectel_nodes=dict((n, r2lab_hostname(n)) for n in quectel_nodes),
         regcred=dict(
             name=regcred_name,
             password=regcred_password,
             email=regcred_email,
         ),
         image=image,
+        quectel_image=quectel_image,
         verbose=verbose,
     )
 
@@ -107,7 +115,11 @@ def run(*, mode, gateway, slicename,
     j_stop_demo = jobs_map['stop-demo']
     j_cleanups = jobs_map['cleanup1'], jobs_map['cleanup2']
     j_leave_joins = [jobs_map[k] for k in jobs_map if k.startswith('leave-join')]
-
+    j_prepare_quectels = jobs_map['prepare-quectels']
+    j_init_quectels = [jobs_map[k] for k in jobs_map if k.startswith('init-quectel-')]
+    j_attach_quectels = [jobs_map[k] for k in jobs_map if k.startswith('attach-quectel-')]
+    j_detach_quectels = [jobs_map[k] for k in jobs_map if k.startswith('detach-quectel-')]
+    
     # run subparts as requested
     purpose = f"{mode} mode"
     ko_message = f"{purpose} KO"
@@ -248,6 +260,9 @@ def main():
         "-i", "--image", default=default_image,
         help="kubernetes image to load on nodes")
 
+    parser.add_argument("--quectel-image", dest="quectel_image",
+                        default=default_quectel_image)
+    
     parser.add_argument(
         "--leader", default=default_leader,
         help="kubernetes leader node")
@@ -288,6 +303,13 @@ def main():
         "--regcred_email", default=default_regcred_email,
         help=f"registry credential email for docker pull")
 
+    parser.add_argument(
+        "-Q", "--quectel-id", dest='quectel_nodes',
+        default=default_quectel_nodes,
+        choices=["9", "18", "32", "35"],
+	action=ListOfChoices,
+	help="specify as many node ids with Quectel UEs as you want.")
+
     parser.add_argument("-v", "--verbose", default=False,
                         action='store_true', dest='verbose',
                         help="run script in verbose mode")
@@ -301,6 +323,12 @@ def main():
     if args.devel:
         args.leader = devel_leader
 
+    if args.quectel_nodes:
+        for quectel in args.quectel_nodes:
+            print(f"Using Quectel UE on node {quectel}")
+        else:
+            print("No Quectel UE involved")
+            
     if args.start:
         print(f"**** Launch all pods of the oai5g demo on the k8s {args.leader} cluster")
         mode = "start"
@@ -330,11 +358,12 @@ def main():
         leader=args.leader, namespace=args.namespace,
         auto_start=args.auto_start, load_images=args.load_images,
         amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
+        quectel_nodes=args.quectel_nodes,
         regcred_name=args.regcred_name,
         regcred_password=args.regcred_password,
         regcred_email=args.regcred_email,
         dry_run=args.dry_run, verbose=args.verbose, image=args.image,
-        k8s_reset=args.k8s_reset)
+        quectel_image=args.quectel_image, k8s_reset=args.k8s_reset)
 
 
 if __name__ == '__main__':

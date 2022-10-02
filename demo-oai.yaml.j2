@@ -3,8 +3,10 @@
 # {{leader}} - typically 'sopnode-l1.inria.fr'
 # {{namespace}} - typically 'oai5g'
 # {{nodes}} - typically {'amf': 'fit01', 'spgwu': 'fit02', 'gnb' : 'fit03', 'ue': 'fit04'}
+# {{quectel_nodes}} - typically {'9': 'fit09', '18': 'fit18}
 # {{regcred}} - typically {'name': 'jdoe', 'password': 'XX', 'email': 'jdoe@y.fr'}
 # {{image}} - typically 'kubernetes'
+# {{quectel_image}} - typically 'quectel-wwan0'
 # {{verbose}} - typically 'True' or "False"
 
 nodes:
@@ -26,7 +28,15 @@ nodes:
     formatter: TimeColonFormatter
     verbose: {{verbose}}
   {% endfor %}
-
+  {% for n, hostname in quectel_nodes.items() %}
+  - id: quectel_node_{{n}}
+    hostname: {{hostname}}
+    gateway: faraday
+    username: root
+    formatter: TimeColonFormatter
+    verbose: {{verbose}}
+  {% endfor %}
+  
 jobs:
   - id: load-images
     node: faraday
@@ -41,6 +51,46 @@ jobs:
         command: >
           rhubarbe wait {%for h in nodes.values()%}{{h}} {% endfor %}
 
+  - id: prepare-quectels
+    node: faraday
+    critical: True
+    verbose: {{verbose}}
+    label: load quectel image {{quectel_image}} on quectel UE nodes
+    commands:
+      - type: Run
+        command: >
+          rhubarbe usrpoff {%for n in quectel_nodes%}{{n}} {% endfor %}
+      - type: Run
+        command: >
+          rhubarbe load -i {{quectel_image}} {%for n in quectel_nodes%}{{h}} {% endfor %}
+      - type: Run
+        command: >
+          rhubarbe wait {%for n in quectel_nodes%}{{n}} {% endfor %}
+      - type: Run
+        command: >
+          rhubarbe usrpon {%for n in quectel_nodes%}{{n}} {% endfor %}
+      - type: Run
+        command: sleep 30
+
+{% for n in quectel_nodes %}
+  - id: init-quectel-node-{{n}}
+    node: quectel_node_{{n}}
+    critical: True
+    verbose: {{verbose}}
+    label: init Quectel UE on fit node {{n}}
+    commands:
+      - type: RunScript
+        command: >
+          find_local_embedded_script("nodes.sh") "quectel-detach" includes=INCLUDES
+      - type: Service
+        command: quectelCM_service.start_command()
+      - type: Run
+        command: sleep 20
+      - type: RunScript
+        command: >
+          find_local_embedded_script("nodes.sh") "quectel-detach" includes=INCLUDES
+  {% endfor %}
+ 
   # for now, useless to switch off other nodes as we use RfSimulator
   # - id: turn-off-others
   #   node: faraday
@@ -117,6 +167,31 @@ jobs:
       - type: Run
         command: /root/demo-oai.sh start {{namespace}} {%for h in nodes.values()%}{{h}} {% endfor %}
 
+  {% for n in quectel_nodes %}
+  - id: attach-quectel-{{n}}
+    required:
+      - start-demo
+      - init-quectel-node-{{n}}
+    node: quectel_node_{{n}}
+    critical: True
+    verbose: {{verbose}}
+    label: >
+      sleep 10s, attach quectel UE on fit node {{n}}; sleep 30s and test cx
+    commands:
+      - type: Run
+        command: sleep 10
+      - type: RunScript
+        command: \
+          find_local_embedded_script("nodes.sh") "quectel-attach" \
+            includes=INCLUDES
+      - type: Run
+        command: sleep 30
+      - type: RunScript
+        command: \
+          find_local_embedded_script("nodes.sh") "check-quectel-cx" \
+            includes=INCLUDES
+  {% endfor %}
+ 
   - id: stop-demo
     required: start-demo
     node: amf
@@ -127,6 +202,23 @@ jobs:
     commands:
       - type: Run
         command: /root/demo-oai.sh stop {{namespace}}
+
+  {% for n in quectel_nodes %}
+  - id: detach-quectel-{{n}}
+    required:
+      - stop-demo
+      - attach-quectel-node-{{n}}
+    node: quectel_node_{{n}}
+    critical: True
+    verbose: {{verbose}}
+    label: >
+      detach quectel UE on fit node {{n}}
+    commands:
+      - type: RunScript
+        command: \
+          find_local_embedded_script("nodes.sh") "quectel-detach" \
+            includes=INCLUDES
+  {% endfor %}
 
   - id: cleanup1
     required: stop-demo
