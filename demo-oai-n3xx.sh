@@ -2,6 +2,7 @@
 
 # Default k8s namespace and gNB node running oai5g pod
 DEF_NS="oai5g"
+DEF_FIT_SPGWU="sopnode-w3.inria.fr"
 DEF_NODE_GNB="sopnode-w2.inria.fr"
 
 OAI5G_CHARTS="$HOME"/oai-cn5g-fed/charts
@@ -13,11 +14,11 @@ OAI5G_RAN="$OAI5G_CHARTS"/oai-5g-ran
 function usage() {
     echo "USAGE:"
     echo "demo-oai.sh init [namespace] |"
-    echo "            start [namespace node_gnb] |"
+    echo "            start [namespace node_spgwu node_gnb] |"
     echo "            stop [namespace] |"
-    echo "            configure-all [node_gnb] |"
-    echo "            reconfigure [node_gnb] |"
-    echo "            start-cn [namespace] |"
+    echo "            configure-all [node_spgwu node_gnb] |"
+    echo "            reconfigure [node_spgwu node_gnb] |"
+    echo "            start-cn [namespace node_spgwu] |"
     echo "            start-gnb [namespace node_gnb] |"
     echo "            stop-cn [namespace] |"
     echo "            stop-gnb [namespace] |"
@@ -26,15 +27,17 @@ function usage() {
 
 
 function configure-oai-5g-basic() {
-
+    node_spgwu=$1; shift
+    
     echo "Configuring chart $OAI5G_BASIC/values.yaml for R2lab"
     cat > /tmp/basic-r2lab.sed <<EOF
 s|mnc: "99"|mnc: "95"|
 s|servedGuamiMnc0: "99"|servedGuamiMnc0: "95"|
 s|plmnSupportMnc: "99"|plmnSupportMnc: "95"|
 s|operatorKey:.*|operatorKey: "8e27b6af0e692e750f32667a3b14605d"  # should be same as in subscriber database|  
-s|n3Ip:.*|n3Ip: "192.168.2.202"|
+s|n3Ip:.*|n3Ip: "192.168.100.162"|
 s|n3Netmask:.*|n3Netmask: "24"|
+s|hostInterface:.*|hostInterface: "enp94s0f0np0" # interface eth2 of the node (sopnode-w3) running spgwu pod|
 s|sgwS1uIf: "eth0"  # n3 interface, net1 if gNB is outside the cluster network and multus creation is true else eth0|sgwS1uIf: "net1"  # n3 interface, net1 if gNB is outside the cluster network and multus creation is true else eth0|
 s|pgwSgiIf: "eth0"  # net1 if gNB is outside the cluster network and multus creation is true else eth0 (important because it sends the traffic towards internet)|pgwSgiIf: "eth0"  # net1 if gNB is outside the cluster network and multus creation is true else eth0 (important because it sends the traffic towards internet)|
 s|dnsIpv4Address: "172.21.3.100" # configure the dns for UE don't use Kubernetes DNS|dnsIpv4Address: "138.96.0.210" # configure the dns for UE don't use Kubernetes DNS|
@@ -45,8 +48,7 @@ EOF
     echo "(Over)writing $OAI5G_BASIC/values.yaml"
     sed -f /tmp/basic-r2lab.sed < /tmp/basic_values.yaml-orig > "$OAI5G_BASIC"/values.yaml
     perl -i -p0e "s/multus:\n    create: false\n    n3Ip:/multus:\n    create: true\n    n3Ip:/s" "$OAI5G_BASIC"/values.yaml
-    perl -i -p0e "s/nodeSelector: \{\}\noai-spgwu-tiny:/nodeName: \"$fit_amf\"\\n  nodeSelector: \{\}\noai-spgwu-tiny:/s" "$OAI5G_BASIC"/values.yaml
-    perl -i -p0e "s/nodeSelector: \{\}\noai-smf:/nodeName: \"$fit_spgwu\"\n  nodeSelector: \{\}\noai-smf:/s" "$OAI5G_BASIC"/values.yaml
+    perl -i -p0e "s/nodeSelector: \{\}\noai-smf:/nodeName: \"$node_spgwu\"\n  nodeSelector: \{\}\noai-smf:/s" "$OAI5G_BASIC"/values.yaml
 
     diff /tmp/basic_values.yaml-orig "$OAI5G_BASIC"/values.yaml
     cd "$OAI5G_BASIC"
@@ -144,6 +146,9 @@ function configure-gnb() {
     echo "Configuring chart $ORIG_CHART for R2lab"
     cat > "$SED_FILE" <<EOF
 s|create: false|create: true|
+s|hostInterface:.*|hostInterface: "enp59s0f0np0" # eth2 Interface of the node (sopnode-w2) on which this pod will be scheduled|
+s|n3IPadd:.*|n3IPadd: "192.168.100.161"|
+s|n3Netmask:.*|n3Netmask: "24"|
 s|mnc:.*|mnc: "95"    # check the information with AMF, SMF, UPF/SPGWU|
 s|useFqdn:.*|useFqdn: "false"|
 s|volumneName|volumeName|
@@ -165,13 +170,16 @@ EOF
 
 
 function configure-all() {
+    node_spgwu=$1
+    shift
     node_gnb=$1
     shift
 
     echo "Applying SopNode patches to OAI5G located on "$HOME"/oai-cn5g-fed"
+    echo -e "\t with oai-spgwu-tiny running on $node_spgwu"
     echo -e "\t with oai-gnb running on $node_gnb"
 
-    configure-oai-5g-basic 
+    configure-oai-5g-basic $node_spgwu
     configure-mysql
     configure-spgwu-tiny
     configure-gnb $node_gnb
@@ -201,6 +209,8 @@ function init() {
 }
 
 function reconfigure() {
+    node_spgwu=$1
+    shift
     node_gnb=$1
     shift
 
@@ -208,15 +218,17 @@ function reconfigure() {
     cd "$HOME"
     rm -rf oai-cn5g-fed
     git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed
-    configure $node_gnb 
+    configure $node_spgwu $node_gnb 
 }
 
 
 function start-cn() {
     ns=$1
     shift
+    node_spgwu=$1
+    shift
 
-    echo "Running start-cn() with namespace: $ns"
+    echo "Running start-cn() with namespace: $ns, node_spgwu:$node_spgwu"
 
     echo "cd $OAI5G_BASIC"
     cd "$OAI5G_BASIC"
@@ -254,6 +266,8 @@ function start-gnb() {
 function start() {
     ns=$1
     shift
+    node_spgwu=$1
+    shift
     node_gnb=$1
     shift
 
@@ -268,7 +282,7 @@ function start() {
         sleep 5
     done
 
-    start-cn $ns
+    start-cn $ns $node_spgwu
     start-gnb $ns $node_gnb
 
     echo "****************************************************************************"
@@ -331,10 +345,10 @@ else
             usage
         fi
     elif [ "$1" == "start" ]; then
-        if test $# -eq 3; then
-            start $2 $3 
+        if test $# -eq 4; then
+            start $2 $3 $4
         elif test $# -eq 1; then
-	    start $DEF_NS $DEF_NODE_GNB
+	    start $DEF_NS $DEF_NODE_SPGWU $DEF_NODE_GNB
 	else
             usage
         fi
@@ -347,27 +361,27 @@ else
             usage
         fi
     elif [ "$1" == "configure-all" ]; then
-        if test $# -eq 2; then
-            configure-all $2
+        if test $# -eq 3; then
+            configure-all $2 $3
 	    exit 0
         elif test $# -eq 1; then
-	    configure-all $DEF_NODE_GNB
+	    configure-all $DEF_NODE_SPGWU $DEF_NODE_GNB
 	else
             usage
         fi
     elif [ "$1" == "reconfigure" ]; then
-        if test $# -eq 2; then
-            reconfigure $2
+        if test $# -eq 3; then
+            reconfigure $2 $3
         elif test $# -eq 1; then
-	    reconfigure $DEF_NODE_GNB
+	    reconfigure $DEF_NODE_SPGWU $DEF_NODE_GNB
 	else
             usage
         fi
     elif [ "$1" == "start-cn" ]; then
-        if test $# -eq 2; then
-            start-cn $2 
+        if test $# -eq 3; then
+            start-cn $2 $3
         elif test $# -eq 1; then
-	    start-cn $DEF_NS
+	    start-cn $DEF_NS $DEF_NODE_SPGWU
 	else
             usage
         fi
