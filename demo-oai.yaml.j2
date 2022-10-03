@@ -36,7 +36,7 @@ nodes:
     formatter: TimeColonFormatter
     verbose: {{verbose}}
   {% endfor %}
-  
+
 jobs:
   - id: load-images
     node: faraday
@@ -91,7 +91,7 @@ jobs:
         command: >
           find_local_embedded_script("nodes.sh") "quectel-detach" includes=INCLUDES
   {% endfor %}
- 
+
   # for now, useless to switch off other nodes as we use RfSimulator
   # - id: turn-off-others
   #   node: faraday
@@ -192,7 +192,7 @@ jobs:
           find_local_embedded_script("nodes.sh") "check-quectel-cx" \
             includes=INCLUDES
   {% endfor %}
- 
+
   - id: stop-demo
     required: start-demo
     node: amf

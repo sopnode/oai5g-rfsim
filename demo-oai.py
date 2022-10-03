@@ -54,8 +54,8 @@ default_regcred_email = "r2labuser@turletti.com"
 
 def run(*, mode, gateway, slicename,
         leader, namespace, auto_start, load_images,
-        k8s_reset, amf, spgwu, gnb, ue, quectel_nodes, 
-        regcred_name, regcred_password, regcred_email,        
+        k8s_reset, amf, spgwu, gnb, ue, quectel_nodes,
+        regcred_name, regcred_password, regcred_email,
         image, quectel_image, verbose, dry_run):
     """
     run the OAI5G demo on the k8s cluster
@@ -67,7 +67,7 @@ def run(*, mode, gateway, slicename,
         spgwu: FIT node number in which spgwu-tiny will be deployed
         gnb: FIT node number in which oai-gnb will be deployed
         ue: FIT node number in which oai-nr-ue will be deployed
-        quectel_nodes: list of indices of quectel UE nodes to use 
+        quectel_nodes: list of indices of quectel UE nodes to use
         image: R2lab k8s image name
     """
 
@@ -119,7 +119,7 @@ def run(*, mode, gateway, slicename,
     j_init_quectels = [jobs_map[k] for k in jobs_map if k.startswith('init-quectel-')]
     j_attach_quectels = [jobs_map[k] for k in jobs_map if k.startswith('attach-quectel-')]
     j_detach_quectels = [jobs_map[k] for k in jobs_map if k.startswith('detach-quectel-')]
-    
+
     # run subparts as requested
     purpose = f"{mode} mode"
     ko_message = f"{purpose} KO"
@@ -153,7 +153,7 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {leader} 
                 purpose += f" (no quectel node prepared)"
             else:
                 purpose += f" (quectel node(s) prepared)"
-                
+
         if not auto_start:
             scheduler.bypass_and_remove(j_start_demo)
             purpose += f" (NO auto start)"
@@ -270,7 +270,7 @@ def main():
 
     parser.add_argument("--quectel-image", dest="quectel_image",
                         default=default_quectel_image)
-    
+
     parser.add_argument(
         "--leader", default=default_leader,
         help="kubernetes leader node")
@@ -336,7 +336,7 @@ def main():
             print(f"Using Quectel UE on node {quectel}")
     else:
         print("No Quectel UE involved")
-            
+
     if args.start:
         print(f"**** Launch all pods of the oai5g demo on the k8s {args.leader} cluster")
         mode = "start"
