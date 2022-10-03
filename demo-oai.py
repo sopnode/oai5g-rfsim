@@ -22,7 +22,7 @@ from asyncssh.logging import set_log_level as asyncssh_set_log_level
 
 from asynciojobs import Scheduler
 
-from apssh import YamlLoader, SshJob, Run, Push
+from apssh import YamlLoader, SshJob, Run, Push, Service
 
 # make sure to pip install r2lab
 from r2lab import r2lab_hostname, ListOfChoices, ListOfChoicesNullReset, find_local_embedded_script
@@ -73,7 +73,17 @@ def run(*, mode, gateway, slicename,
 
     quectel_ids = quectel_nodes[:]
     quectel = len(quectel_ids) > 0
-    
+
+    INCLUDES = [find_local_embedded_script(x) for x in (
+      "r2labutils.sh", "nodes.sh",
+    )]
+
+    quectelCM_service = Service(
+        command="quectel-CM -s oai.ipv4 -4",
+        service_id="QuectelCM",
+        verbose=verbose,
+    )
+
     jinja_variables = dict(
         gateway=gateway,
         leader=leader,
@@ -93,6 +103,9 @@ def run(*, mode, gateway, slicename,
         image=image,
         quectel_image=quectel_image,
         verbose=verbose,
+        nodes_sh=find_local_embedded_script("nodes.sh"),
+        INCLUDES=INCLUDES,
+        quectel_service_start = quectelCM_service.start_command()
     )
 
     # (*) first compute the complete logic (but without check_lease)

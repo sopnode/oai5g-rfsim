@@ -51,6 +51,7 @@ jobs:
         command: >
           rhubarbe wait {%for h in nodes.values()%}{{h}} {% endfor %}
 
+  {% if quectel_nodes %}
   - id: prepare-quectels
     node: faraday
     critical: True
@@ -71,6 +72,7 @@ jobs:
           rhubarbe usrpon {%for n in quectel_nodes.keys()%}{{n}} {% endfor %}
       - type: Run
         command: sleep 30
+  {% endif %}
 
   {% for n in quectel_nodes.keys() %}
   - id: init-quectel-node-{{n}}
@@ -82,14 +84,16 @@ jobs:
     commands:
       - type: RunScript
         command: >
-          find_local_embedded_script("nodes.sh") "check-quectel-on" includes=INCLUDES
-      - type: Service
-        command: quectelCM_service.start_command()
+          {{nodes_sh}} check-quectel-on
+        includes: {{INCLUDES}}
+      - type: Run
+        command: {{quectel_service_start}}
       - type: Run
         command: sleep 20
       - type: RunScript
         command: >
-          find_local_embedded_script("nodes.sh") "quectel-detach" includes=INCLUDES
+          {{nodes_sh}} quectel-detach
+        includes: {{INCLUDES}}
   {% endfor %}
 
   # for now, useless to switch off other nodes as we use RfSimulator
@@ -182,15 +186,15 @@ jobs:
       - type: Run
         command: sleep 10
       - type: RunScript
-        command: \
-          find_local_embedded_script("nodes.sh") "quectel-attach" \
-            includes=INCLUDES
+        command: >
+          {{nodes_sh}} quectel-attach
+        includes: {{INCLUDES}}
       - type: Run
         command: sleep 30
       - type: RunScript
-        command: \
-          find_local_embedded_script("nodes.sh") "check-quectel-cx" \
-            includes=INCLUDES
+        command: >
+          {{nodes_sh}} check-quectel-cx
+        includes: {{INCLUDES}}
   {% endfor %}
 
   - id: stop-demo
@@ -216,9 +220,9 @@ jobs:
       detach quectel UE on fit node {{n}}
     commands:
       - type: RunScript
-        command: \
-          find_local_embedded_script("nodes.sh") "quectel-detach" \
-            includes=INCLUDES
+        command: >
+          {{nodes_sh}} quectel-detach
+        includes: {{INCLUDES}}
   {% endfor %}
 
   - id: cleanup1
