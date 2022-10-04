@@ -40,5 +40,14 @@ function tests-quectel() {
     store-svg "quectel1-nok8reset" -Q 9 -k
 }
 
-tests-basic
-tests-quectel
+default_steps="tests-basic tests-quectel"
+
+if [[ -n "$@" ]]; then
+    steps="$@"
+else
+    steps="$default_steps"
+fi
+
+for step in $steps; do
+    $step
+done
