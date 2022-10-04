@@ -127,7 +127,8 @@ def run(*, mode, gateway, slicename,
     j_load_images = jobs_map['load-images']
     j_start_demo = jobs_map['start-demo']
     j_stop_demo = jobs_map['stop-demo']
-    j_cleanups = jobs_map['cleanup1'], jobs_map['cleanup2']
+    j_cleanups = [jobs_map[k] for k in jobs_map if k.startswith('cleanup')]
+
     j_leave_joins = [jobs_map[k] for k in jobs_map if k.startswith('leave-join')]
     if quectel_nodes:
         j_prepare_quectels = jobs_map['prepare-quectels']
@@ -140,7 +141,7 @@ def run(*, mode, gateway, slicename,
     ko_message = f"{purpose} KO"
 
     if mode == "cleanup":
-        scheduler.keep_only_between(starts=j_cleanups)
+        scheduler.keep_only(j_cleanups)
         ko_message = f"Could not cleanup demo"
         ok_message = f"Thank you, the k8s {leader} cluster is now clean and FIT nodes have been switched off"
     elif mode == "stop":
@@ -151,7 +152,7 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {leader} 
 \t ./demo-oai.py [--leader {leader}] --cleanup
 """
     elif mode == "start":
-        scheduler.keep_only_between(starts=[j_start_demo], ends=[j_stop_demo], keep_ends=False)
+        scheduler.keep_only([j_start_demo] + j_init_quectels + j_attach_quectels)
         ok_message = f"OAI5G demo started, you can check kubectl logs on the {leader} cluster"
         ko_message = f"Could not launch OAI5G pods"
     else:
