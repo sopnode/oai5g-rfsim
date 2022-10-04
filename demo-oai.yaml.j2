@@ -113,9 +113,6 @@ jobs:
   - id: leave-join-{{function}}
     required:
     - load-images
-    {% if quectel_dict %}
-    - prepare-quectels
-    {% endif %}
     node: {{function}}
     critical: False
     verbose: {{verbose}}
@@ -247,3 +244,20 @@ jobs:
     commands:
       - type: Run
         command: rhubarbe off {%for h in nodes.values()%}{{h}} {% endfor %}
+
+  {% if quectel_dict %}
+  - id: cleanup-quectels
+    required:
+    {% for n in quectel_dict.keys() %}
+    - detach-quectel-node-{{n}}
+    {% endfor %}
+    node: faraday
+    critical: False
+    verbose: {{verbose}}
+    label: Turn off quectel nodes {{quectel_dict.keys()}}
+    commands:
+      - type: Run
+        command: rhubarbe usrpoff {%for n in quectel_dict.keys()%}{{n}} {% endfor %}
+      - type: Run
+        command: rhubarbe off {%for n in quectel_dict.keys()%}{{n}} {% endfor %}
+  {% endif %}
