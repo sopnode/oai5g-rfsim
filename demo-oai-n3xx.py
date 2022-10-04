@@ -1,10 +1,14 @@
 #!/usr/bin/env python3 -u
 
 """
-This script prepares 4 fit R2lab nodes to join a sopnode k8s cluster for the oai5g demo.
+This script prepares one fit R2lab node to join the SophiaNode k8s cluster as a worker node for the oai5g demo.
 Then, it clones the oai5g-rfsim git directory on one of the 4 fit nodes and applies
-different patches on the various OAI5G charts to make them run on the SopNode platform.
+different patches on the various OAI5G charts to make them run on the k8s cluster.
 Finally, it deploys the different OAI5G pods through the same fit node.
+
+In this demo, the oai-gnb pod uses one USRP N300/N320 device located in R2lab.
+A variable number of UEs (currently 0 to 4) could be used using -Q option.
+Each UE will run on a fit node attached to a Quectel RM 500Q-GL device in R2lab.
 
 This version requires asynciojobs-0.16.3 or higher; if needed, upgrade with
 pip install -U asynciojobs
