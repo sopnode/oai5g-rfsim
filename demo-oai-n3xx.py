@@ -35,26 +35,25 @@ from r2lab import r2lab_hostname, ListOfChoices, ListOfChoicesNullReset, find_lo
 default_leader = 'sopnode-l1.inria.fr'
 devel_leader = 'sopnode-w2.inria.fr'
 default_image = 'kubernetes'
-default_quectel_image = "quectel-wwan0"
+default_quectel_image = 'quectel-wwan0'
 
-default_amf = 1
-default_spgwu = 2
-default_gnb = 3
-default_ue = 9
+default_k8s_fit = 1
+default_spgwu = 'sopnode-w3.inria.fr'
+default_gnb = 'sopnode-w2.inria.fr'
 default_quectel_nodes = []
 
 default_gateway  = 'faraday.inria.fr'
 default_slicename  = 'inria_sopnode'
 default_namespace = 'oai5g'
 
-default_regcred_name = "r2labuser"
-default_regcred_password = "r2labuser-pwd"
-default_regcred_email = "r2labuser@turletti.com"
+default_regcred_name = 'r2labuser'
+default_regcred_password = 'r2labuser-pwd'
+default_regcred_email = 'r2labuser@turletti.com'
 
 
 def run(*, mode, gateway, slicename,
         leader, namespace, auto_start, load_images,
-        k8s_reset, amf, spgwu, gnb, ue, quectel_nodes,
+        k8s_reset, k8s_fit, spgwu, gnb, quectel_nodes,
         regcred_name, regcred_password, regcred_email,
         image, quectel_image, verbose, dry_run):
     """
@@ -63,10 +62,9 @@ def run(*, mode, gateway, slicename,
     Arguments:
         slicename: the Unix login name (slice name) to enter the gateway
         leader: k8s leader host
-        amf: FIT node number in which oai-amf will be deployed
-        spgwu: FIT node number in which spgwu-tiny will be deployed
-        gnb: FIT node number in which oai-gnb will be deployed
-        ue: FIT node number in which oai-nr-ue will be deployed
+        k8s_fit: FIT node number attached to the k8s cluster as worker node
+        spgwu: node name in which spgwu-tiny will be deployed
+        gnb: node name in which oai-gnb will be deployed
         quectel_nodes: list of indices of quectel UE nodes to use
         image: R2lab k8s image name
     """
@@ -89,10 +87,9 @@ def run(*, mode, gateway, slicename,
         leader=leader,
         namespace=namespace,
         nodes=dict(
-            amf=r2lab_hostname(amf),
-            spgwu=r2lab_hostname(spgwu),
-            gnb=r2lab_hostname(gnb),
-            ue=r2lab_hostname(ue),
+            k8s_fit=r2lab_hostname(k8s_fit),
+            spgwu=spgwu,
+            gnb=gnb,
         ),
         quectel_nodes=dict((n, r2lab_hostname(n)) for n in quectel_nodes),
         regcred=dict(
@@ -112,7 +109,7 @@ def run(*, mode, gateway, slicename,
     # (*) then simplify/prune according to the mode
     # (*) only then add check_lease in all modes
 
-    loader = YamlLoader("demo-oai.yaml.j2")
+    loader = YamlLoader("demo-oai-n3xx.yaml.j2")
     nodes_map, jobs_map, scheduler = loader.load_with_maps(jinja_variables, save_intermediate = verbose)
     scheduler.verbose = verbose
     # debug: to visually inspect the full scenario
@@ -128,7 +125,8 @@ def run(*, mode, gateway, slicename,
     j_stop_demo = jobs_map['stop-demo']
     j_cleanups = jobs_map['cleanup1'], jobs_map['cleanup2']
     j_leave_joins = [jobs_map[k] for k in jobs_map if k.startswith('leave-join')]
-    j_prepare_quectels = jobs_map['prepare-quectels']
+    if quectel_nodes:
+        j_prepare_quectels = jobs_map['prepare-quectels']
     j_init_quectels = [jobs_map[k] for k in jobs_map if k.startswith('init-quectel-')]
     j_attach_quectels = [jobs_map[k] for k in jobs_map if k.startswith('attach-quectel-')]
     j_detach_quectels = [jobs_map[k] for k in jobs_map if k.startswith('detach-quectel-')]
@@ -157,7 +155,8 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {leader} 
         if not load_images:
             scheduler.bypass_and_remove(j_load_images)
             purpose += f" (no image loaded)"
-            scheduler.bypass_and_remove(j_prepare_quectels)
+            if quectel_nodes:
+                scheduler.bypass_and_remove(j_prepare_quectels)
             purpose += f" (no quectel node prepared)"
         else:
             purpose += f" WITH rhubarbe imaging the FIT nodes"
@@ -165,7 +164,7 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {leader} 
                 scheduler.bypass_and_remove(j_prepare_quectels)
                 purpose += f" (no quectel node prepared)"
             else:
-                purpose += f" (quectel node(s) prepared)"
+                purpose += f" (quectel node(s) prepared): {list(quectel_nodes.keys())}"
 
         if not auto_start:
             scheduler.bypass_and_remove(j_start_demo)
@@ -292,17 +291,14 @@ def main():
         help=f"equivalent to --leader {devel_leader}"
     )
 
-    parser.add_argument("--amf", default=default_amf,
-                        help="id of the node that runs oai-amf")
+    parser.add_argument("--k8s_fit", default=default_k8s_fit,
+                        help="id of the FIT node that attachs to the k8s cluster")
 
     parser.add_argument("--spgwu", default=default_spgwu,
-                        help="id of the node that runs oai-spgwu")
+                        help="node name that runs oai-spgwu")
 
     parser.add_argument("--gnb", default=default_gnb,
-                        help="id of the node that runs oai-gnb")
-
-    parser.add_argument("--ue", default=default_ue,
-                        help="id of the node that runs oai-ue")
+                        help="node name that runs oai-gnb")
 
     parser.add_argument(
         "--namespace", default=default_namespace,
@@ -346,7 +342,7 @@ def main():
 
     if args.quectel_nodes:
         for quectel in args.quectel_nodes:
-            print(f"Using Quectel UE on node {quectel}")
+            print(f"Using Quectel UE on node {r2lab_hostname(quectel)}")
     else:
         print("No Quectel UE involved")
 
@@ -362,11 +358,10 @@ def main():
     else:
         print(f"**** Prepare oai5g demo setup on the k8s {args.leader} cluster with {args.slicename} slicename")
         print(f"OAI5G pods will run on the {args.namespace} k8s namespace")
-        print(f"the following FIT nodes will be used:")
-        print(f"\t{r2lab_hostname(args.amf)} for oai-amf")
-        print(f"\t{r2lab_hostname(args.spgwu)} for oai-spgwu-tiny")
-        print(f"\t{r2lab_hostname(args.gnb)} for oai-gnb")
-        print(f"\t{r2lab_hostname(args.ue)} for oai-nr-ue")
+        print(f"the following nodes will be used:")
+        print(f"\t{r2lab_hostname(args.k8s_fit)} as k8s worker node")
+        print(f"\t{args.spgwu} for oai-spgwu-tiny")
+        print(f"\t{args.gnb} for oai-gnb")
         print(f"FIT image loading:",
               f"YES with {args.image}" if args.load_images
               else "NO (use --load-images if needed)")
@@ -378,7 +373,7 @@ def main():
     run(mode=mode, gateway=default_gateway, slicename=args.slicename,
         leader=args.leader, namespace=args.namespace,
         auto_start=args.auto_start, load_images=args.load_images,
-        amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
+        k8s_fit=args.k8s_fit, spgwu=args.spgwu, gnb=args.gnb,
         quectel_nodes=args.quectel_nodes,
         regcred_name=args.regcred_name,
         regcred_password=args.regcred_password,
