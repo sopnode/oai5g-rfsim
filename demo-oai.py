@@ -22,10 +22,10 @@ from asyncssh.logging import set_log_level as asyncssh_set_log_level
 
 from asynciojobs import Scheduler
 
-from apssh import YamlLoader, SshJob, Run, Push, Service
+from apssh import YamlLoader, SshJob, Run, Service # Push
 
 # make sure to pip install r2lab
-from r2lab import r2lab_hostname, ListOfChoices, ListOfChoicesNullReset, find_local_embedded_script
+from r2lab import r2lab_hostname, ListOfChoices, find_local_embedded_script # ListOfChoicesNullReset
 
 
 # where to join; as of this writing:
