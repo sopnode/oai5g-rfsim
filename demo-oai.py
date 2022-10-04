@@ -119,6 +119,8 @@ def run(*, mode, gateway, slicename,
         complete_output = "demo-oai-complete"
         print(f"Verbose: storing full scenario (before mode processing) in {complete_output}.svg")
         scheduler.export_as_svgfile(complete_output)
+        print(f"Verbose: storing full scenario (before mode processing) in {complete_output}.png")
+        scheduler.export_as_pngfile(complete_output)
 
 
     # retrieve jobs for the surgery part
