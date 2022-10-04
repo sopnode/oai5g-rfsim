@@ -37,6 +37,7 @@ function tests-quectel() {
     store-svg "quectel2-start" -Q 9 -Q 18 --start
     store-svg "quectel2-stop" -Q 9 -Q 18 --stop
     store-svg "quectel2-cleanup" -Q 9 -Q 18 --cleanup
+    store-svg "quectel1-nok8reset" -Q 9 -k
 }
 
 tests-basic
