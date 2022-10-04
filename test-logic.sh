@@ -26,18 +26,18 @@ function tests-basic() {
 
 # with quectel selected
 function tests-quectel() {
-    store-svg "quectel1-load" -l -Q 9
-    store-svg "quectel2-load" -l -Q 9 -Q 18
-    store-svg "quectel1" -Q 9
-    store-svg "quectel2" -Q 9 -Q 18
-    store-svg "quectel1-noauto"  -Q 9 -a
-    store-svg "quectel1-start" -Q 9 --start
-    store-svg "quectel1-stop" -Q 9 --stop
-    store-svg "quectel1-cleanup" -Q 9 --cleanup
-    store-svg "quectel2-start" -Q 9 -Q 18 --start
-    store-svg "quectel2-stop" -Q 9 -Q 18 --stop
-    store-svg "quectel2-cleanup" -Q 9 -Q 18 --cleanup
-    store-svg "quectel1-nok8reset" -Q 9 -k
+    store-svg "quectel1-load" -l -Q 18
+    store-svg "quectel2-load" -l -Q 18 -Q 32
+    store-svg "quectel1" -Q 18
+    store-svg "quectel2" -Q 18 -Q 32
+    store-svg "quectel1-noauto"  -Q 18 -a
+    store-svg "quectel1-start" -Q 18 --start
+    store-svg "quectel1-stop" -Q 18 --stop
+    store-svg "quectel1-cleanup" -Q 18 --cleanup
+    store-svg "quectel2-start" -Q 18 -Q 32 --start
+    store-svg "quectel2-stop" -Q 18 -Q 32 --stop
+    store-svg "quectel2-cleanup" -Q 18 -Q 32 --cleanup
+    store-svg "quectel1-nok8reset" -Q 18 -k
 }
 
 default_steps="tests-basic tests-quectel"
