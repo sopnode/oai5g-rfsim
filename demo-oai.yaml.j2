@@ -3,7 +3,7 @@
 # {{leader}} - typically 'sopnode-l1.inria.fr'
 # {{namespace}} - typically 'oai5g'
 # {{nodes}} - typically {'amf': 'fit01', 'spgwu': 'fit02', 'gnb' : 'fit03', 'ue': 'fit04'}
-# {{quectel_nodes}} - typically {'9': 'fit09', '18': 'fit18}
+# {{quectel_dict}} - typically {'9': 'fit09', '18': 'fit18}
 # {{regcred}} - typically {'name': 'jdoe', 'password': 'XX', 'email': 'jdoe@y.fr'}
 # {{image}} - typically 'kubernetes'
 # {{quectel_image}} - typically 'quectel-wwan0'
@@ -28,7 +28,7 @@ nodes:
     formatter: TimeColonFormatter
     verbose: {{verbose}}
   {% endfor %}
-  {% for n, hostname in quectel_nodes.items() %}
+  {% for n, hostname in quectel_dict.items() %}
   - id: quectel_node_{{n}}
     hostname: {{hostname}}
     gateway: faraday
@@ -51,7 +51,7 @@ jobs:
         command: >
           rhubarbe wait {%for h in nodes.values()%}{{h}} {% endfor %}
 
-  {% if quectel_nodes %}
+  {% if quectel_dict %}
   - id: prepare-quectels
     node: faraday
     critical: True
@@ -60,21 +60,21 @@ jobs:
     commands:
       - type: Run
         command: >
-          rhubarbe usrpoff {%for n in quectel_nodes.keys()%}{{n}} {% endfor %}
+          rhubarbe usrpoff {%for n in quectel_dict.keys()%}{{n}} {% endfor %}
       - type: Run
         command: >
-          rhubarbe load -i {{quectel_image}} {%for n in quectel_nodes.keys()%}{{n}} {% endfor %}
+          rhubarbe load -i {{quectel_image}} {%for n in quectel_dict.keys()%}{{n}} {% endfor %}
       - type: Run
         command: >
-          rhubarbe wait {%for n in quectel_nodes.keys()%}{{n}} {% endfor %}
+          rhubarbe wait {%for n in quectel_dict.keys()%}{{n}} {% endfor %}
       - type: Run
         command: >
-          rhubarbe usrpon {%for n in quectel_nodes.keys()%}{{n}} {% endfor %}
+          rhubarbe usrpon {%for n in quectel_dict.keys()%}{{n}} {% endfor %}
       - type: Run
         command: sleep 30
   {% endif %}
 
-  {% for n in quectel_nodes.keys() %}
+  {% for n in quectel_dict.keys() %}
   - id: init-quectel-node-{{n}}
     required: prepare-quectels
     node: quectel_node_{{n}}
@@ -111,7 +111,11 @@ jobs:
   #
   {% for function, hostname in nodes.items() %}
   - id: leave-join-{{function}}
-    required: load-images
+    required:
+    - load-images
+    {% if quectel_dict %}
+    - prepare-quectels
+    {% endif %}
     node: {{function}}
     critical: False
     verbose: {{verbose}}
@@ -167,12 +171,12 @@ jobs:
     critical: True
     verbose: {{verbose}}
     label: >
-      Launch OAI5G pods by calling demo-oai.sh start from {{amf}}
+      Launch OAI5G pods by calling demo-oai.sh start from {{nodes.amf}}
     commands:
       - type: Run
         command: /root/demo-oai.sh start {{namespace}} {%for h in nodes.values()%}{{h}} {% endfor %}
 
-  {% for n in quectel_nodes.keys() %}
+  {% for n in quectel_dict.keys() %}
   - id: attach-quectel-node-{{n}}
     required:
       - start-demo
@@ -208,7 +212,7 @@ jobs:
       - type: Run
         command: /root/demo-oai.sh stop {{namespace}}
 
-  {% for n in quectel_nodes.keys() %}
+  {% for n in quectel_dict.keys() %}
   - id: detach-quectel-node-{{n}}
     required:
       - stop-demo

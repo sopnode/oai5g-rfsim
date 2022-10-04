@@ -71,8 +71,7 @@ def run(*, mode, gateway, slicename,
         image: R2lab k8s image name
     """
 
-    quectel_ids = quectel_nodes[:]
-    quectel = len(quectel_ids) > 0
+    quectel_dict = dict((n, r2lab_hostname(n)) for n in quectel_nodes)
 
     INCLUDES = [find_local_embedded_script(x) for x in (
       "r2labutils.sh", "nodes.sh",
@@ -94,7 +93,7 @@ def run(*, mode, gateway, slicename,
             gnb=r2lab_hostname(gnb),
             ue=r2lab_hostname(ue),
         ),
-        quectel_nodes=dict((n, r2lab_hostname(n)) for n in quectel_nodes),
+        quectel_dict=quectel_dict,
         regcred=dict(
             name=regcred_name,
             password=regcred_password,
@@ -154,19 +153,19 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {leader} 
         ok_message = f"OAI5G demo started, you can check kubectl logs on the {leader} cluster"
         ko_message = f"Could not launch OAI5G pods"
     else:
-        scheduler.keep_only_between(ends=[j_stop_demo], keep_ends=False)
+        scheduler.keep_only_between(ends=[j_stop_demo] + j_detach_quectels, keep_ends=False)
         if not load_images:
             scheduler.bypass_and_remove(j_load_images)
             purpose += f" (no image loaded)"
-            if quectel_nodes:
+            if quectel_nodes and j_prepare_quectels in scheduler.jobs:
                 scheduler.bypass_and_remove(j_prepare_quectels)
             purpose += f" (no quectel node prepared)"
         else:
             purpose += f" WITH rhubarbe imaging the FIT nodes"
-            if not quectel:
+            if not quectel_nodes:
                 purpose += f" (no quectel node prepared)"
             else:
-                purpose += f" (quectel node(s) prepared: {list(quectel_nodes.keys())})"
+                purpose += f" (quectel node(s) prepared: {quectel_nodes})"
 
         if not auto_start:
             scheduler.bypass_and_remove(j_start_demo)
