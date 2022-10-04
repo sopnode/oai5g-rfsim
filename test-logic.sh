@@ -16,12 +16,12 @@ function tests-basic() {
     store-svg "plain"
     store-svg "plain-load" -l
     store-svg "plain-noauto" -a
-    store-svg "plain-load-noauto" -l -a
-    store-svg "plain-nok8reset" -k
-    store-svg "plain-load-nok8reset" -l -k
     store-svg "plain-start" --start
     store-svg "plain-stop" --stop
     store-svg "plain-cleanup" --cleanup
+    store-svg "plain-load-noauto" -l -a
+    store-svg "plain-nok8reset" -k
+    store-svg "plain-load-nok8reset" -l -k
 }
 
 # with quectel selected
@@ -31,11 +31,11 @@ function tests-quectel() {
     store-svg "quectel1" -Q 9
     store-svg "quectel2" -Q 9 -Q 18
     store-svg "quectel1-noauto"  -Q 9 -a
-    store-svg "quectel1-cleanup" -Q 9 --start
-    store-svg "quectel1-cleanup" -Q 9 --stop
+    store-svg "quectel1-start" -Q 9 --start
+    store-svg "quectel1-stop" -Q 9 --stop
     store-svg "quectel1-cleanup" -Q 9 --cleanup
-    store-svg "quectel2-cleanup" -Q 9 -Q 18 --start
-    store-svg "quectel2-cleanup" -Q 9 -Q 18 --stop
+    store-svg "quectel2-start" -Q 9 -Q 18 --start
+    store-svg "quectel2-stop" -Q 9 -Q 18 --stop
     store-svg "quectel2-cleanup" -Q 9 -Q 18 --cleanup
 }
 
