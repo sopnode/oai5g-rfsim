@@ -28,5 +28,5 @@ function tests-quectel() {
     store-svg "quectel1-cleanup" -Q 9 --cleanup
 }
 
-#tests-basic
+tests-basic
 tests-quectel

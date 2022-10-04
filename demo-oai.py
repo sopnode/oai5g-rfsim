@@ -128,7 +128,8 @@ def run(*, mode, gateway, slicename,
     j_stop_demo = jobs_map['stop-demo']
     j_cleanups = jobs_map['cleanup1'], jobs_map['cleanup2']
     j_leave_joins = [jobs_map[k] for k in jobs_map if k.startswith('leave-join')]
-    j_prepare_quectels = jobs_map['prepare-quectels']
+    if quectel_nodes:
+        j_prepare_quectels = jobs_map['prepare-quectels']
     j_init_quectels = [jobs_map[k] for k in jobs_map if k.startswith('init-quectel-')]
     j_attach_quectels = [jobs_map[k] for k in jobs_map if k.startswith('attach-quectel-')]
     j_detach_quectels = [jobs_map[k] for k in jobs_map if k.startswith('detach-quectel-')]
@@ -157,15 +158,15 @@ Nota: If you are done with the demo, do not forget to clean up the k8s {leader} 
         if not load_images:
             scheduler.bypass_and_remove(j_load_images)
             purpose += f" (no image loaded)"
-            scheduler.bypass_and_remove(j_prepare_quectels)
+            if quectel_nodes:
+                scheduler.bypass_and_remove(j_prepare_quectels)
             purpose += f" (no quectel node prepared)"
         else:
             purpose += f" WITH rhubarbe imaging the FIT nodes"
             if not quectel:
-                scheduler.bypass_and_remove(j_prepare_quectels)
                 purpose += f" (no quectel node prepared)"
             else:
-                purpose += f" (quectel node(s) prepared)"
+                purpose += f" (quectel node(s) prepared: {list(quectel_nodes.keys())})"
 
         if not auto_start:
             scheduler.bypass_and_remove(j_start_demo)
