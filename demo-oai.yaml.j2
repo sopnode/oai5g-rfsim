@@ -2,12 +2,12 @@
 # {{gateway}} - typically 'faraday.inria.fr'
 # {{leader}} - typically 'sopnode-l1.inria.fr'
 # {{namespace}} - typically 'oai5g'
-# {{nodes}} - typically {'amf': 'fit01', 'spgwu': 'fit02', 'gnb' : 'fit03', 'ue': 'fit04'}
-# {{quectel_dict}} - typically {'9': 'fit09', '18': 'fit18}
-# {{regcred}} - typically {'name': 'jdoe', 'password': 'XX', 'email': 'jdoe@y.fr'}
+# {{nodes}} - typically {'k8s_fit': 'fit01', 'spgwu': 'sopnode-w3.inria.fr', 'gnb' : 'sopnode-w2.inria.fr'}
+# {{quectel_nodes}} - typically {'9': 'fit09', '18': 'fit18}
+# {{regcred}} - typically {'name': 'jdoe', 'password': 'XX', 'email': 'jdoe@yahoo.fr'}
 # {{image}} - typically 'kubernetes'
 # {{quectel_image}} - typically 'quectel-wwan0'
-# {{verbose}} - typically 'True' or "False"
+# {{verbose}} - typically 'True' or 'False'
 
 nodes:
   - id: faraday
@@ -42,14 +42,14 @@ jobs:
     node: faraday
     critical: True
     verbose: {{verbose}}
-    label: load image {{image}} on FIT worker nodes
+    label: load image {{image}} on FIT worker node
     commands:
       - type: Run
         command: >
-          rhubarbe load -i {{image}} {%for h in nodes.values()%}{{h}} {% endfor %}
+          rhubarbe load -i {{image}} {{nodes['k8s_fit']}}
       - type: Run
         command: >
-          rhubarbe wait {%for h in nodes.values()%}{{h}} {% endfor %}
+          rhubarbe wait {{nodes['k8s_fit']}}
 
   {% if quectel_dict %}
   - id: prepare-quectels
@@ -109,15 +109,15 @@ jobs:
   #   - type: Run
   #     command: sleep 1
   #
-  {% for function, hostname in nodes.items() %}
-  - id: leave-join-{{function}}
+
+  - id: leave-join-k8s-fit-node
     required:
     - load-images
-    node: {{function}}
+    node: k8s_fit
     critical: False
     verbose: {{verbose}}
     label: >
-      Prepare node {{function}} on {{hostname}} for k8s & networking
+      Prepare node {{nodes['k8s_fit']}} for k8s & networking
     commands:
       - type: Run
         command: nmcli con down data; nmcli dev status; leave-tunnel
@@ -129,20 +129,17 @@ jobs:
         command: nmcli con up data; nmcli dev status; join-tunnel
       - type: Run
         command: kube-install.sh join-cluster r2lab@{{leader}}
-  {% endfor %}
 
   - id: init-demo
     required:
-      {% for function in nodes.keys() %}
-      - leave-join-{{function}}
-      {% endfor %}
-    node: amf
+      - leave-join-k8s-fit-node
+    node: k8s_fit
     critical: True
     verbose: {{verbose}}
     label: >
-      Push demo-oai.sh script on {{nodes.amf}},
+      Push demo-oai.sh script on {{nodes.k8s_fit}},
       clone oai-cn5g-fed, apply patches,
-      and run the k8s demo-oai script from {{nodes.amf}}
+      and run the k8s demo-oai script from {{nodes.k8s_fit}}
     commands:
       - type: Push
         localpaths:
@@ -152,7 +149,7 @@ jobs:
       - type: Run
         command: chmod a+x demo-oai.sh configure-demo-oai.sh
       - type: Run
-        command: /root/configure-demo-oai.sh update {{namespace}} {%for h in nodes.values()%}{{h}} {%endfor %} {%for x in regcred.values()%}{{x}} {%endfor %}
+        command: /root/configure-demo-oai.sh update {{namespace}} {{nodes['spgwu']}} {{nodes['gnb']}} {%for x in regcred.values()%}{{x}} {%endfor %}
       - type: Run
         command: >
           rm -rf oai-cn5g-fed;
@@ -160,18 +157,18 @@ jobs:
       - type: Run
         command: /root/demo-oai.sh init {{namespace}}
       - type: Run
-        command: /root/demo-oai.sh configure-all {%for h in nodes.values()%}{{h}} {% endfor %}
+        command: /root/demo-oai.sh configure-all {{nodes['spgwu']}} {{nodes['gnb']}}
 
   - id: start-demo
     required: init-demo
-    node: amf
+    node: k8s_fit
     critical: True
     verbose: {{verbose}}
     label: >
-      Launch OAI5G pods by calling demo-oai.sh start from {{nodes.amf}}
+      Launch OAI5G pods by calling demo-oai.sh start from {{k8s_fit}}
     commands:
       - type: Run
-        command: /root/demo-oai.sh start {{namespace}} {%for h in nodes.values()%}{{h}} {% endfor %}
+        command: /root/demo-oai.sh start {{namespace}} {{nodes['spgwu']}} {{nodes['gnb']}}
 
   {% for n in quectel_dict.keys() %}
   - id: attach-quectel-node-{{n}}
@@ -200,11 +197,11 @@ jobs:
 
   - id: stop-demo
     required: start-demo
-    node: amf
+    node: k8s_fit
     critical: True
     verbose: {{verbose}}
     label: >
-      Delete OAI5G pods by calling demo-oai.sh stop from {{nodes.amf}}
+      Delete OAI5G pods by calling demo-oai.sh stop from {{nodes.k8s_fit}}
     commands:
       - type: Run
         command: /root/demo-oai.sh stop {{namespace}}
@@ -243,7 +240,7 @@ jobs:
     verbose: {{verbose}}
     commands:
       - type: Run
-        command: rhubarbe off {%for h in nodes.values()%}{{h}} {% endfor %}
+        command: rhubarbe off {{nodes['k8s_fit']}}
 
   {% if quectel_dict %}
   - id: cleanup-quectels

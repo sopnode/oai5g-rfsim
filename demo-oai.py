@@ -1,10 +1,14 @@
 #!/usr/bin/env python3 -u
 
 """
-This script prepares 4 fit R2lab nodes to join a sopnode k8s cluster for the oai5g demo.
+This script prepares one fit R2lab node to join the SophiaNode k8s cluster as a worker node for the oai5g demo.
 Then, it clones the oai5g-rfsim git directory on one of the 4 fit nodes and applies
-different patches on the various OAI5G charts to make them run on the SopNode platform.
+different patches on the various OAI5G charts to make them run on the k8s cluster.
 Finally, it deploys the different OAI5G pods through the same fit node.
+
+In this demo, the oai-gnb pod uses one USRP N300/N320 device located in R2lab.
+A variable number of UEs (currently 0 to 4) could be used using -Q option.
+Each UE will run on a fit node attached to a Quectel RM 500Q-GL device in R2lab.
 
 This version requires asynciojobs-0.16.3 or higher; if needed, upgrade with
 pip install -U asynciojobs
@@ -35,26 +39,25 @@ from r2lab import r2lab_hostname, ListOfChoices, find_local_embedded_script # Li
 default_leader = 'sopnode-l1.inria.fr'
 devel_leader = 'sopnode-w2.inria.fr'
 default_image = 'kubernetes'
-default_quectel_image = "quectel-wwan0"
+default_quectel_image = 'quectel-wwan0'
 
-default_amf = 1
-default_spgwu = 2
-default_gnb = 3
-default_ue = 9
+default_k8s_fit = 1
+default_spgwu = 'sopnode-w3.inria.fr'
+default_gnb = 'sopnode-w2.inria.fr'
 default_quectel_nodes = []
 
 default_gateway  = 'faraday.inria.fr'
 default_slicename  = 'inria_sopnode'
 default_namespace = 'oai5g'
 
-default_regcred_name = "r2labuser"
-default_regcred_password = "r2labuser-pwd"
-default_regcred_email = "r2labuser@turletti.com"
+default_regcred_name = 'r2labuser'
+default_regcred_password = 'r2labuser-pwd'
+default_regcred_email = 'r2labuser@turletti.com'
 
 
 def run(*, mode, gateway, slicename,
         leader, namespace, auto_start, load_images,
-        k8s_reset, amf, spgwu, gnb, ue, quectel_nodes,
+        k8s_reset, k8s_fit, spgwu, gnb, quectel_nodes,
         regcred_name, regcred_password, regcred_email,
         image, quectel_image, verbose, dry_run):
     """
@@ -63,10 +66,9 @@ def run(*, mode, gateway, slicename,
     Arguments:
         slicename: the Unix login name (slice name) to enter the gateway
         leader: k8s leader host
-        amf: FIT node number in which oai-amf will be deployed
-        spgwu: FIT node number in which spgwu-tiny will be deployed
-        gnb: FIT node number in which oai-gnb will be deployed
-        ue: FIT node number in which oai-nr-ue will be deployed
+        k8s_fit: FIT node number attached to the k8s cluster as worker node
+        spgwu: node name in which spgwu-tiny will be deployed
+        gnb: node name in which oai-gnb will be deployed
         quectel_nodes: list of indices of quectel UE nodes to use
         image: R2lab k8s image name
     """
@@ -88,10 +90,9 @@ def run(*, mode, gateway, slicename,
         leader=leader,
         namespace=namespace,
         nodes=dict(
-            amf=r2lab_hostname(amf),
-            spgwu=r2lab_hostname(spgwu),
-            gnb=r2lab_hostname(gnb),
-            ue=r2lab_hostname(ue),
+            k8s_fit=r2lab_hostname(k8s_fit),
+            spgwu=spgwu,
+            gnb=gnb,
         ),
         quectel_dict=quectel_dict,
         regcred=dict(
@@ -295,17 +296,14 @@ def main():
         help=f"equivalent to --leader {devel_leader}"
     )
 
-    parser.add_argument("--amf", default=default_amf,
-                        help="id of the node that runs oai-amf")
+    parser.add_argument("--k8s_fit", default=default_k8s_fit,
+                        help="id of the FIT node that attachs to the k8s cluster")
 
     parser.add_argument("--spgwu", default=default_spgwu,
-                        help="id of the node that runs oai-spgwu")
+                        help="node name that runs oai-spgwu")
 
     parser.add_argument("--gnb", default=default_gnb,
-                        help="id of the node that runs oai-gnb")
-
-    parser.add_argument("--ue", default=default_ue,
-                        help="id of the node that runs oai-ue")
+                        help="node name that runs oai-gnb")
 
     parser.add_argument(
         "--namespace", default=default_namespace,
@@ -349,7 +347,7 @@ def main():
 
     if args.quectel_nodes:
         for quectel in args.quectel_nodes:
-            print(f"Using Quectel UE on node {quectel}")
+            print(f"Using Quectel UE on node {r2lab_hostname(quectel)}")
     else:
         print("No Quectel UE involved")
 
@@ -365,11 +363,10 @@ def main():
     else:
         print(f"**** Prepare oai5g demo setup on the k8s {args.leader} cluster with {args.slicename} slicename")
         print(f"OAI5G pods will run on the {args.namespace} k8s namespace")
-        print(f"the following FIT nodes will be used:")
-        print(f"\t{r2lab_hostname(args.amf)} for oai-amf")
-        print(f"\t{r2lab_hostname(args.spgwu)} for oai-spgwu-tiny")
-        print(f"\t{r2lab_hostname(args.gnb)} for oai-gnb")
-        print(f"\t{r2lab_hostname(args.ue)} for oai-nr-ue")
+        print(f"the following nodes will be used:")
+        print(f"\t{r2lab_hostname(args.k8s_fit)} as k8s worker node")
+        print(f"\t{args.spgwu} for oai-spgwu-tiny")
+        print(f"\t{args.gnb} for oai-gnb")
         print(f"FIT image loading:",
               f"YES with {args.image}" if args.load_images
               else "NO (use --load-images if needed)")
@@ -381,7 +378,7 @@ def main():
     run(mode=mode, gateway=default_gateway, slicename=args.slicename,
         leader=args.leader, namespace=args.namespace,
         auto_start=args.auto_start, load_images=args.load_images,
-        amf=args.amf, spgwu=args.spgwu, gnb=args.gnb, ue=args.ue,
+        k8s_fit=args.k8s_fit, spgwu=args.spgwu, gnb=args.gnb,
         quectel_nodes=args.quectel_nodes,
         regcred_name=args.regcred_name,
         regcred_password=args.regcred_password,
