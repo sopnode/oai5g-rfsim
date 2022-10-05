@@ -32,10 +32,10 @@ default_master = 'sopnode-l1.inria.fr'
 devel_master = 'sopnode-w2.inria.fr'
 default_image = 'kubernetes'
 
-default_amf = 1
-default_spgwu = 2
-default_gnb = 3
-default_ue = 9
+default_amf = 'sopnode-w2.inria.fr'
+default_spgwu = 'sopnode-w2.inria.fr'
+default_gnb = 'sopnode-w2.inria.fr'
+default_ue = 1
 
 default_gateway  = 'faraday.inria.fr'
 default_slicename  = 'inria_sopnode'
@@ -69,13 +69,16 @@ def run(*, gateway, slicename,
                       formatter=TimeColonFormatter())
 
 
-    node_index = {
-        id: SshNode(gateway=faraday, hostname=r2lab_hostname(id),
-                    username="root",formatter=TimeColonFormatter(),
-                    verbose=verbose)
-        for id in (amf, spgwu, gnb, ue)
-    }
-    worker_ids = [amf, spgwu, gnb, ue]
+#    node_index = {
+#        id: SshNode(gateway=faraday, hostname=r2lab_hostname(id),
+#                    username="root",formatter=TimeColonFormatter(),
+#                    verbose=verbose)
+#        for id in (ue)
+#    }
+    node_index = { ue:SshNode(gateway=faraday, hostname=r2lab_hostname(default_ue),
+            username="root",formatter=TimeColonFormatter(),
+            verbose=verbose)}
+    worker_ids = [ue]
 
     # the global scheduler
     scheduler = Scheduler(verbose=verbose)
@@ -130,6 +133,7 @@ def run(*, gateway, slicename,
                 verbose=verbose,
                 label=f"Reset data interface, ipip tunnels of worker node {r2lab_hostname(id)} and possibly leave {master} k8s cluster",
                 command=[
+                    Run("kube-install.sh self-update"),
                     Run("nmcli con down data; nmcli dev status; leave-tunnel"),
                     Run(f"kube-install.sh leave-cluster"),
                     Run(f"sleep 60"),
@@ -145,23 +149,28 @@ def run(*, gateway, slicename,
         SshJob(
             scheduler=scheduler,
             required=green_light,
-            node=node_index[amf],
+            node=node_index[ue],
             critical=True,
             verbose=verbose,
             label=f"Push oai-demo-ai.sh script, clone oai-cn5g-fed, apply patches and run the k8s demo-oai script from {r2lab_hostname(amf)}",
             command=[
                 Run("pwd;ls"),
                 Push(localpaths="demo-oai.sh", remotepath="/root/"),
+                Push(localpaths="p4-network.yaml", remotepath="/root/"),
                 Run("chmod a+x /root/demo-oai.sh"),
                 RunScript("configure-demo-oai.sh", "update",
-                          namespace, r2lab_hostname(amf),
-                          r2lab_hostname(spgwu), r2lab_hostname(gnb),
+                          namespace,amf,
+                          spgwu, gnb,
                           r2lab_hostname(ue), regcred_name,
                           regcred_password, regcred_email),
                 Run("rm -rf oai-cn5g-fed; git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed"),
                 RunScript("demo-oai.sh", "init", namespace),
-                RunScript("demo-oai.sh", "configure-all", r2lab_hostname(amf),
-                          r2lab_hostname(spgwu), r2lab_hostname(gnb),
+                Run("export NODE_NETIF=team0"),
+                Run("export IFNAME=gnb"),
+                Run("export SUBNET_PREFIX=192.168.100"),
+                Run("envsubst < /root/p4-network.yaml | kubectl -noai5g create -f -"),
+                RunScript("demo-oai.sh", "configure-all", amf,
+                          spgwu, gnb,
                           r2lab_hostname(ue)),
             ]
         )
@@ -171,13 +180,13 @@ def run(*, gateway, slicename,
             SshJob(
                 scheduler=scheduler,
                 required=run_setup,
-                node=node_index[amf],
+                node=node_index[ue],
                 critical=True,
                 verbose=verbose,
                 label=f"Launch OAI5G pods by calling demo-oai.sh start from {r2lab_hostname(amf)}",
                 command=[
-                    RunScript("demo-oai.sh", "start", namespace, r2lab_hostname(amf),
-	                      r2lab_hostname(spgwu), r2lab_hostname(gnb), r2lab_hostname(ue)),
+                    RunScript("demo-oai.sh", "start", namespace, amf,
+	                      spgwu, gnb, r2lab_hostname(ue)),
                 ]
             )
         ]

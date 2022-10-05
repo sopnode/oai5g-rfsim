@@ -2,10 +2,10 @@
 
 # Default k8s namespace and FIT nodes running oai5g pods
 DEF_NS="oai5g"
-DEF_FIT_AMF="fit01"
-DEF_FIT_SPGWU="fit02"
-DEF_FIT_GNB="fit03"
-DEF_FIT_UE="fit09"
+DEF_FIT_AMF="sopnode-w2.inria.fr"
+DEF_FIT_SPGWU="sopnode-w2.inria.fr"
+DEF_FIT_GNB='sopnode-w2.inria.fr'
+DEF_FIT_UE="fit1"
 
 
 OAI5G_CHARTS="$HOME"/oai-cn5g-fed/charts
@@ -44,11 +44,11 @@ function configure-oai-5g-basic() {
 
     echo "Configuring chart $OAI5G_BASIC/values.yaml for R2lab"
     cat > /tmp/basic-r2lab.sed <<EOF
-s|create: false|create: true|
+s|create: false|create: false|
 s|n1IPadd:.*|n1IPadd: "192.168.2.201"|
 s|n1Netmask:.*|n1Netmask: "24"|
 s|hostInterface:.*|hostInterface: "enp0s25"|
-s|amfInterfaceNameForNGAP: "eth0" # If multus creation is true then net1 else eth0|amfInterfaceNameForNGAP: "net1" # If multus creation is true then net1 else eth0|
+s|amfInterfaceNameForNGAP: "eth0" # If multus creation is true then net1 else eth0|amfInterfaceNameForNGAP: "eth0" # If multus creation is true then net1 else eth0|
 s|mnc: "99"|mnc: "95"|
 s|servedGuamiMnc0: "99"|servedGuamiMnc0: "95"|
 s|plmnSupportMnc: "99"|plmnSupportMnc: "95"|
@@ -174,6 +174,7 @@ function configure-gnb() {
     SED_FILE="/tmp/$FUNCTION-r2lab.sed"
     echo "Configuring chart $ORIG_CHART for R2lab"
     cat > "$SED_FILE" <<EOF
+s|gnb: true|gnb: false|
 s|create: false|create: true|
 s|n2IPadd:.*|n2IPadd: "192.168.2.203"|
 s|n2Netmask:.*|n2Netmask: "24"|
@@ -200,7 +201,9 @@ EOF
     echo "Configuring chart $ORIG_CHART for R2lab"
 
     cp "$ORIG_CHART" /tmp/"$FUNCTION"_deployment.yaml-orig
-    perl -i -p0e 's/"name": "{{ .Chart.Name }}-net1",.*?"]/"name": "{{ .Chart.Name }}-net1"/s' "$ORIG_CHART"
+    perl -i -p0e 's/>-.*?\}]/p4-network, p4-network/s' "$ORIG_CHART"
+    #perl -i -p0e 's/>-.*?\}]/macvlan-data/s' "$ORIG_CHART"
+    #perl -i -p0e 's/"name": "{{ .Chart.Name }}-net1",.*?"]/"name": "{{ .Chart.Name }}-net1"/s' "$ORIG_CHART"
     diff /tmp/"$FUNCTION"_deployment.yaml-orig "$ORIG_CHART"
 }
 
@@ -281,6 +284,9 @@ function init() {
     # Just in case the k8s cluster has been restarted without multus enabled..
     echo "kube-install.sh enable-multus"
     kube-install.sh enable-multus || true
+    #echo "New : kube-install.sh $ns multus-network-attachments"
+    #net_if=team0
+    #kube-install.sh multus-network-attachments $ns $net_if || true
 }
 
 function reconfigure() {
@@ -346,7 +352,7 @@ function start-gnb() {
     echo "cd $OAI5G_RAN"
     cd "$OAI5G_RAN"
 
-    echo "helm -n$ns install oai-gnb oai-gnb/"
+    echo "Not starting : helm -n$ns install oai-gnb oai-gnb/"
     helm -n$ns install oai-gnb oai-gnb/
 
     echo "Wait until the gNB pod is READY"
@@ -414,18 +420,18 @@ function start() {
 
     start-cn $ns $fit_amf $fit_spgwu
     start-gnb $ns $fit_gnb
-    start-ue $ns $fit_gnb $fit_ue
+    #start-ue $ns $fit_gnb $fit_ue
 
     # Check UE logs
-    UE_POD_NAME=$(kubectl -n$ns get pods -l app.kubernetes.io/name=oai-nr-ue -o jsonpath="{.items[0].metadata.name}")
-    echo "Check UE logs"
-    echo "kubectl -n$ns logs $UE_POD_NAME -c nr-ue"
-    kubectl -n$ns logs $UE_POD_NAME -c nr-ue
+    #UE_POD_NAME=$(kubectl -n$ns get pods -l app.kubernetes.io/name=oai-nr-ue -o jsonpath="{.items[0].metadata.name}")
+    #echo "Check UE logs"
+    #echo "kubectl -n$ns logs $UE_POD_NAME -c nr-ue"
+    #kubectl -n$ns logs $UE_POD_NAME -c nr-ue
 
     # Wait 10s and run ping test from UE to google.fr
     echo "sleep 10"
     sleep 10
-    run-ping $ns
+    #run-ping $ns
     
     echo "****************************************************************************"
     echo "When you finish, to clean-up the k8s cluster, please run demo-oai.py --clean"
