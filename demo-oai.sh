@@ -31,13 +31,18 @@ function configure-oai-5g-basic() {
     
     echo "Configuring chart $OAI5G_BASIC/values.yaml for R2lab"
     cat > /tmp/basic-r2lab.sed <<EOF
+s|create: false|create: true|
+s|n1IPadd:.*|n1IPadd: "192.168.100.161"|
+s|n1Netmask:.*|n1Netmask: "24"|
+s|hostInterface:.*|hostInterface: "team0" # interface of the node (sopnode-w3) running amf pod for N2|
+s|amfInterfaceNameForNGAP: "eth0" # If multus creation is true then net1 else eth0|amfInterfaceNameForNGAP: "net1" # If multus creation is true then net1 else eth0|
 s|mnc: "99"|mnc: "95"|
 s|servedGuamiMnc0: "99"|servedGuamiMnc0: "95"|
 s|plmnSupportMnc: "99"|plmnSupportMnc: "95"|
 s|operatorKey:.*|operatorKey: "8e27b6af0e692e750f32667a3b14605d"  # should be same as in subscriber database|  
 s|n3Ip:.*|n3Ip: "192.168.100.162"|
 s|n3Netmask:.*|n3Netmask: "24"|
-s|hostInterface:.*|hostInterface: "enp94s0f0np0" # interface eth2 of the node (sopnode-w3) running spgwu pod|
+s|hostInterface:.*|hostInterface: "team0" # interface of the node (sopnode-w3) running spgwu pod for N3|
 s|sgwS1uIf: "eth0"  # n3 interface, net1 if gNB is outside the cluster network and multus creation is true else eth0|sgwS1uIf: "net1"  # n3 interface, net1 if gNB is outside the cluster network and multus creation is true else eth0|
 s|pgwSgiIf: "eth0"  # net1 if gNB is outside the cluster network and multus creation is true else eth0 (important because it sends the traffic towards internet)|pgwSgiIf: "eth0"  # net1 if gNB is outside the cluster network and multus creation is true else eth0 (important because it sends the traffic towards internet)|
 s|dnsIpv4Address: "172.21.3.100" # configure the dns for UE don't use Kubernetes DNS|dnsIpv4Address: "138.96.0.210" # configure the dns for UE don't use Kubernetes DNS|
@@ -47,7 +52,6 @@ EOF
     cp "$OAI5G_BASIC"/values.yaml /tmp/basic_values.yaml-orig
     echo "(Over)writing $OAI5G_BASIC/values.yaml"
     sed -f /tmp/basic-r2lab.sed < /tmp/basic_values.yaml-orig > "$OAI5G_BASIC"/values.yaml
-    perl -i -p0e "s/multus:\n    create: false\n    n3Ip:/multus:\n    create: true\n    n3Ip:/s" "$OAI5G_BASIC"/values.yaml
     perl -i -p0e "s/nodeSelector: \{\}\noai-smf:/nodeName: \"$node_spgwu\"\n  nodeSelector: \{\}\noai-smf:/s" "$OAI5G_BASIC"/values.yaml
 
     diff /tmp/basic_values.yaml-orig "$OAI5G_BASIC"/values.yaml
@@ -124,6 +128,18 @@ EOF
     patch "$ORIG_CHART" < /tmp/oai_db-basic-patch
 }
 
+function configure-amf() {
+
+    FUNCTION="oai-amf"
+    DIR="$OAI5G_CORE/$FUNCTION"
+    ORIG_CHART="$OAI5G_CORE/$FUNCTION"/templates/deployment.yaml
+    echo "Configuring chart $ORIG_CHART for R2lab"
+
+    cp "$ORIG_CHART" /tmp/"$FUNCTION"_deployment.yaml-orig
+    perl -i -p0e 's/>-.*?\}]/"{{ .Chart.Name }}-n1-net1"/s' "$ORIG_CHART"
+    diff /tmp/"$FUNCTION"_deployment.yaml-orig "$ORIG_CHART"
+}
+
 function configure-spgwu-tiny() {
 
     FUNCTION="oai-spgwu-tiny"
@@ -145,12 +161,21 @@ function configure-gnb() {
     SED_FILE="/tmp/$FUNCTION-r2lab.sed"
     echo "Configuring chart $ORIG_CHART for R2lab"
     cat > "$SED_FILE" <<EOF
+s|gnb: true|gnb: false|
 s|create: false|create: true|
-s|hostInterface:.*|hostInterface: "enp59s0f0np0" # eth2 Interface of the node (sopnode-w2) on which this pod will be scheduled|
-s|n3IPadd:.*|n3IPadd: "192.168.100.161"|
+s|n2IPadd:.*|n2IPadd: "192.168.100.163"|
+s|n2Netmask:.*|n2Netmask: "24"|
+s|hostInterface:.*|hostInterface: "team0" # Interface of the node (sopnode-w2) on which this pod will be scheduled for N2 and N3|
+s|n3IPadd:.*|n3IPadd: "192.168.100.164"|
 s|n3Netmask:.*|n3Netmask: "24"|
 s|mnc:.*|mnc: "95"    # check the information with AMF, SMF, UPF/SPGWU|
 s|useFqdn:.*|useFqdn: "false"|
+s|amfIpAddress:.*|amfIpAddress: "192.168.100.161"  # amf ip-address or service-name|
+s|gnbNgaIfName:.*|gnbNgaIfName: "net1"  # net1 in case multus create is true that means another interface is created for ngap interface, n2 to communicate with amf|
+s|gnbNgaIpAddress:.*|gnbNgaIpAddress: "192.168.100.163" # n2IPadd in case multus create is true|
+s|gnbNguIfName:.*|gnbNguIfName: "net2"   #net2 in case multus create is true gtu interface for upf/spgwu|
+s|gnbNguIpAddress:.*|gnbNguIpAddress: "192.168.100.164" # n3IPadd in case multus create is true|
+s|useAdditionalOptions:.*|useAdditionalOptions: '--sa --usrp-args "type=n3xx, addr=192.168.100.43" --numerology 1 -r 24 --band 78 -s 516 -C 3610000000 --ue-fo-compensation --ue-rxgain 30 --ue-txgain 30 -d'|
 s|volumneName|volumeName|
 s|nodeName:.*|nodeName: $node_gnb|
 EOF
@@ -181,6 +206,7 @@ function configure-all() {
 
     configure-oai-5g-basic $node_spgwu
     configure-mysql
+    configure-amf
     configure-spgwu-tiny
     configure-gnb $node_gnb
 }
@@ -324,13 +350,12 @@ function stop() {
         echo "Remove all 5G OAI pods"
 	stop-cn $ns
 	stop-gnb $ns
-	stop-ue $ns
     else
         echo "OAI5G demo is not running, there is no pod on namespace $ns !"
     fi
     echo "Delete namespace $ns"
     echo "kubectl delete ns $ns"
-    kubectl delete ns $ns
+    kubectl delete ns $ns || true
 }
 
 

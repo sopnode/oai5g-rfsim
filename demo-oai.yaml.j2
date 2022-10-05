@@ -176,7 +176,7 @@ jobs:
       - start-demo
       - init-quectel-node-{{n}}
     node: quectel_node_{{n}}
-    critical: True
+    critical: False
     verbose: {{verbose}}
     label: >
       sleep 10s, attach quectel UE on fit node {{n}}; sleep 30s and test cx
@@ -212,7 +212,7 @@ jobs:
       - stop-demo
       - attach-quectel-node-{{n}}
     node: quectel_node_{{n}}
-    critical: True
+    critical: False
     verbose: {{verbose}}
     label: >
       detach quectel UE on fit node {{n}}
