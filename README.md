@@ -1,16 +1,11 @@
 # OAI5G demo on SophiaNode
 
-This script aims to demonstrate how to automate a OAI5G deployment on the SophiaNode cluster
-using both FIT nodes on R2lab and classical k8s workers.
+The *[demo-oai.py](./demo-oai.py)* script aims to demonstrate how to automate a OAI5G deployment on k8s worker nodes on the SophiaNode cluster with a FIT/R2lab node used as a k8s worker node to launch all the pods. 
 
-In this demo, the **demo-oai.py** nepi-ng script is used to prepare 4 FIT nodes that will be used to run the following OAI5G functions developed at Eurecom:
+The RAN part is located in the R2lab testbed and may involve:
 
-* oai-amf (*`fit01`* by default)
-* oai-spgwu (*`fit02`* by default)
-* oai-gnb (*`fit03`* by default)
-* oai-nr-ue (*`fit04`* by default)
-
-This demo does not involve actual radio transmission, all radio traffic is emulated thanks to the OAI5G RF simulator.
+* for gNB: AW2S RRU (such as [Jaguar MIMO 2x2 or Panther MIMO 4x4](https://www.aw2s.com/fr/solutions/rrh-rru/)) or USRP (such as [N300](https://www.ettus.com/all-products/USRP-N300/) or [N320](https://www.ettus.com/all-products/USRP-N320/)) connected with fibers to the *oai-gnb* pod running on a k8s worker server on the cluster;
+* for UE: [Quectel RM 500Q-GL](https://www.quectel.com/wp-content/uploads/2021/03/Quectel_RM500Q-GL_5G_Specification_V1.3.pdf) nodes attached to regular FIT/R2lab nodes in R2lab.
 
 
 **Acknowledgments:** _Support regarding configuration of the OAI5G functions has been provided by
@@ -24,19 +19,19 @@ Before you can run the script in this directory, you need to install its depende
 
 ### Basic usage
 
-all the forms of the script assume there is a deployed kubernetes cluster on the chosen master node, and that the provided slicename holds the current lease on FIT/R2lab.
+All the forms of the script assume there is a deployed kubernetes cluster on the chosen master node, and that the provided slicename holds the current lease on FIT/R2lab.
 
 The mental model is we are dealing with essentially three states:
 
 * (0) initially, the k8s cluster is running and the FIT/R2lab nodes are down;
-* (1) after setup, the FIT/R2lab nodes are loaded with the proper image, and have joined the cluster;
+* (1) after setup, one FIT/R2lab node is loaded with the proper image, and has joined the cluster;
 * (2) at that point one can use the `--start` option to start the system, which amounts to deploying pods on the k8s cluster;
 * (back to 1) it is point one can roll back and come back to the previous state, using the `--stop` option
 
 with none of the `--start/--stop/--cleanup` option the script goes from state 0 to (2),
-unless the `--no-auto-start` option is given.
+unless the `--no-auto-start` or `-k` option is given.
 
-run `demo-oai.py --help` for more details
+run `demo-oai.py --help` for more details.
 
 ### References
 
@@ -50,22 +45,16 @@ run `demo-oai.py --help` for more details
 
 ### Metal provisioning
 
-The **demo-oai.py** script optionally deploys a preconfigured Kubernetes (k8s) image on 4 R2lab FIT nodes, which by default are:
-
-* *`fit01`* for oai-amf
-* *`fit02`* for oai-spgwu
-* *`fit03`* for oai-gnb
-* *`fit09`* for oai-nr-ue
-
-Note that all the other OAI5G pods, e.g., oai-smf or oai-spgwu, are launched on the regular k8s worker servers of the SophiaNode platform. 
+The **demo-oai.py** script optionally deploys a preconfigured Kubernetes (k8s) image on a FIT/R2lab node, which by default is *`fit01`*. 
 
 ### Joining the k8s cluster
-Then the script will get all the nodes to join the k8s master (*`sopnode-l1.inria.fr`* by default), and configure [k8s Multus](https://github.com/k8snetworkplumbingwg/multus-cni) to use their `data` interface.
+Then the script will get the FIT/R2lab node to join the k8s master (*`sopnode-l1.inria.fr`* by default).
+
 
 ### Configuration
-After that, the script will deploy OAI5G pods on the k8s cluster. To do that, it will use the k8s worker node that hosts the `oai-amf` pod, which again is *`fit01`* by default.
+After that, the script will deploy OAI5G pods on the k8s cluster through the FIT/R2lab worker node. 
 
-In a nutshell, the script will clone the OAI5G `oai-cn5g-fed` git repository on the FIT node *fit01*. To do it manually, you will have to run:
+First, the script will clone the OAI5G `oai-cn5g-fed` git repository on the FIT node *fit01*. To do it manually, you will have to run:
 
 ```
 root@fit01# git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed
@@ -78,7 +67,7 @@ root@fit01# ./demo-oai.sh configure-all
 
 These patches include configuration of Multus CNI interfaces specific to the SophiaNode platform. See the IP address configuration in the following figure modified from the [OAI 5G Core Network Deployment using Helm Charts](https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed/-/blob/master/docs/DEPLOY_SA5G_HC.md) tutorial.
 
-![Multus CNI Configuration](./helm-chart-basic-cni.png)
+![Multus CNI Configuration](./helm-chart-r2lab.png)
 
 ### Deployment
 
@@ -87,7 +76,7 @@ Finally, the **demo-oai.py** script will deploy the OAI5G pods on the k8s cluste
 
 ```bash
 # Wait until all fit nodes are in READY state
-sopnode-l1$ kubectl wait node --for=condition=Ready fit01 fit02 fit03 fit09
+sopnode-l1$ kubectl wait node --for=condition=Ready fit01 
 
 # Run the OAI 5G Core pods
 sopnode-l1$ cd /home/oai/oai-cn5g-fed/charts/oai-5g-core/oai-5g-basic
@@ -97,35 +86,11 @@ sopnode-l1$ helm --namespace=oai5g spray .
 # Wait until all 5G Core pods are READY
 sopnode-l1$ kubectl wait pod -noai5g --for=condition=Ready --all
 
-# Run the oai-gnb pod on fit03
+# Run the oai-gnb pod 
 sopnode-l1$ cd /home/oai/oai-cn5g-fed/charts/oai-5g-ran
 sopnode-l1$ helm --namespace=oai5g install oai-gnb oai-gnb/
 
 # Wait until the gNB pod is READY
-sopnode-l1$ kubectl wait pod -noai5g --for=condition=Ready --all
-
-# Run the oai-nr-ue pod on fit09
-
-# Retrieve the IP address of the gnb pod and set it in chart
-#  /home/oai/oai-cn5g-fed/charts/oai-5g-ran/oai-nr-ue/values.yaml
-
-sopnode-l1$ GNB_POD_NAME=$(kubectl -noai5g get pods -l app.kubernetes.io/name=oai-gnb -o jsonpath="{.items[0].metadata.name}")
-
-sopnode-l1$ GNB_POD_IP=$(kubectl -noai5g get pod $GNB_POD_NAME --template '{{.status.podIP}}')
-
-sopnode-l1$ conf_ue_dir="/home/oai/oai-cn5g-fed/charts/oai-5g-ran/oai-nr-ue"
-sopnode-l1$ cat > /tmp/gnb-values.sed <<EOF
-s|  rfSimulator:.*|  rfSimulator: "${GNB_POD_IP}"|
-EOF
-
-# (Over)writing oai-nr-ue chart $conf_ue_dir/values.yaml
-sopnode-l1$ cp $conf_ue_dir/values.yaml /tmp/values-orig.yaml
-sopnode-l1$ sed -f /tmp/gnb-values.sed < /tmp/values-orig.yaml > /tmp/values.yaml
-sopnode-l1$ cp /tmp/values.yaml $conf_ue_dir/
-
-sopnode-l1$ helm --namespace=oai5g install oai-nr-ue oai-nr-ue/
-
-# Wait until the NR-UE pod is READY
 sopnode-l1$ kubectl wait pod -noai5g --for=condition=Ready --all
 
 ```
@@ -164,9 +129,8 @@ Note that the *demo-oai.sh* script allows to start/stop specific part of OAI5G p
 
 ### Testing
 
-At the end of the demo, few logs of the oai-nr-ue pod should be visible on the terminal.
+At the end of the demo, few logs of the oai-gnb pod should be visible on the terminal.
 
-We also run a ping test on the UE to google.fr to verify that the 5G connection is running fine.
 
 To check logs of the different pods, you need first to log on one of the k8s workers or master nodes, e.g., *fit01* or *sopnode-l1.inria.fr*.
 
@@ -179,20 +143,11 @@ root@fit01# GNB_POD_NAME=$(kubectl -noai5g get pods -l app.kubernetes.io/name=oa
 root@fit01# kubectl -noai5g logs $GNB_POD_NAME -c gnb
 ```
 
-Also, to check logs of the `oai-nr-ue` pod:
-
-``` bash
-
-root@fit01# UE_POD_NAME=$(kubectl -noai5g get pods -l app.kubernetes.io/name=oai-nr-ue -o jsonpath="{.items[0].metadata.name}")
-
-root@fit01# kubectl -noai5g logs $UE_POD_NAME -c nr-ue
-```
-
 It is also possible to run the ping test directly on *fit01*:
 
 ```
 root@fit01# ./demo-oai.sh run-ping
-kubectl -noai5g exec -it oai-nr-ue-b794c6777-z8485 -c nr-ue -- /bin/ping --I oaitun_ue1 c4 google.fr
+ping --I oaitun_ue1 c4 google.fr
 PING google.fr (172.217.22.131) from 12.1.1.81 oaitun_ue1: 56(84) bytes of data.
 64 bytes from par21s12-in-f3.1e100.net (172.217.22.131): icmp_seq=1 ttl=112 time=37.3 ms
 64 bytes from par21s12-in-f3.1e100.net (172.217.22.131): icmp_seq=2 ttl=112 time=33.1 ms
