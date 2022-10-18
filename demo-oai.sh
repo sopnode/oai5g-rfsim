@@ -174,7 +174,7 @@ function configure-gnb() {
     SED_FILE="/tmp/$FUNCTION-r2lab.sed"
     echo "Configuring chart $ORIG_CHART for R2lab"
     cat > "$SED_FILE" <<EOF
-s|gnb: true|gnb: false|
+s|gnb: true|gnb: true|
 s|create: false|create: true|
 s|n2IPadd:.*|n2IPadd: "192.168.2.203"|
 s|n2Netmask:.*|n2Netmask: "24"|
@@ -190,6 +190,8 @@ s|gnbNguIfName:.*|gnbNguIfName: "net2"   #net2 in case multus create is true gtu
 s|gnbNguIpAddress:.*|gnbNguIpAddress: "192.168.2.204" # n3IPadd in case multus create is true|
 s|volumneName|volumeName|
 s|nodeName:.*|nodeName: $fit_gnb|
+s|useAdditionalOptions:.*|useAdditionalOptions:  "--sa --usrp-tx-thread-config 1"|
+s|useSATddMono: "yes"|useSATddMono: ""|
 EOF
 
     cp "$ORIG_CHART" /tmp/"$FUNCTION"_values.yaml-orig
@@ -201,7 +203,7 @@ EOF
     echo "Configuring chart $ORIG_CHART for R2lab"
 
     cp "$ORIG_CHART" /tmp/"$FUNCTION"_deployment.yaml-orig
-    perl -i -p0e 's/>-.*?\}]/p4-network, p4-network/s' "$ORIG_CHART"
+    perl -i -p0e 's/>-.*?\}]/p4-macvlan-gnb, p4-macvlan-gnb/s' "$ORIG_CHART"
     #perl -i -p0e 's/>-.*?\}]/macvlan-data/s' "$ORIG_CHART"
     #perl -i -p0e 's/"name": "{{ .Chart.Name }}-net1",.*?"]/"name": "{{ .Chart.Name }}-net1"/s' "$ORIG_CHART"
     diff /tmp/"$FUNCTION"_deployment.yaml-orig "$ORIG_CHART"
@@ -287,6 +289,7 @@ function init() {
     #echo "New : kube-install.sh $ns multus-network-attachments"
     #net_if=team0
     #kube-install.sh multus-network-attachments $ns $net_if || true
+    kubectl -n$ns create configmap gnb-conf-vol-cm --from-file=/opt/oai-gnb/mounted.conf 
 }
 
 function reconfigure() {
