@@ -273,7 +273,7 @@ function init() {
     # init function should be run once per demo.
     echo "init: ensure spray is installed and possibly create secret docker-registry"
     # Remove pulling limitations from docker-hub with anonymous account
-    kubectl create namespace $ns || true
+    #kubectl create namespace $ns || true
     kubectl -n$ns delete secret regcred || true
     kubectl -n$ns create secret docker-registry regcred --docker-server=https://index.docker.io/v1/ --docker-username=r2labuser --docker-password=r2labuser-pwd --docker-email=r2labuser@turletti.com || true
 
@@ -289,7 +289,6 @@ function init() {
     #echo "New : kube-install.sh $ns multus-network-attachments"
     #net_if=team0
     #kube-install.sh multus-network-attachments $ns $net_if || true
-    kubectl -n$ns create configmap gnb-conf-vol-cm --from-file=/opt/oai-gnb/mounted.conf 
 }
 
 function reconfigure() {
@@ -355,7 +354,8 @@ function start-gnb() {
     echo "cd $OAI5G_RAN"
     cd "$OAI5G_RAN"
 
-    echo "Not starting : helm -n$ns install oai-gnb oai-gnb/"
+    echo "Removing previously deployed oai-gnb pod"
+    echo "Now starting : helm -n$ns install oai-gnb oai-gnb/"
     helm -n$ns install oai-gnb oai-gnb/
 
     echo "Wait until the gNB pod is READY"

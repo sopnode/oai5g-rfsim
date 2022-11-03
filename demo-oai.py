@@ -69,12 +69,10 @@ def run(*, gateway, slicename,
                       formatter=TimeColonFormatter())
 
 
-#    node_index = {
-#        id: SshNode(gateway=faraday, hostname=r2lab_hostname(id),
-#                    username="root",formatter=TimeColonFormatter(),
-#                    verbose=verbose)
-#        for id in (ue)
-#    }
+#    node_index = { ue:SshNode(gateway=faraday, hostname=r2lab_hostname(default_ue),
+#            username="root",formatter=TimeColonFormatter(),
+#            verbose=verbose)}
+
     node_index = { ue:SshNode(gateway=faraday, hostname=r2lab_hostname(default_ue),
             username="root",formatter=TimeColonFormatter(),
             verbose=verbose)}
@@ -166,6 +164,9 @@ def run(*, gateway, slicename,
                           r2lab_hostname(ue), regcred_name,
                           regcred_password, regcred_email),
                 Run("rm -rf oai-cn5g-fed; git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed"),
+                Run("mkdir /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf"),
+                Push(localpaths="gnb.sa.band66.fr1.106PRB.usrpn300.conf", remotepath="/root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf/mounted.conf"),
+                Push(localpaths="configmap-gnbconf.yaml", remotepath="/root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/templates/configmap-gnbconf.yaml"),
                 RunScript("demo-oai.sh", "init", namespace),
                 #Run("envsubst < export NODE_NETIF=team0"),
                 #Run("envsubst < export IFNAME=gnb"),
