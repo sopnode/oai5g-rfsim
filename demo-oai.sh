@@ -354,6 +354,9 @@ function start-gnb() {
     echo "cd $OAI5G_RAN"
     cd "$OAI5G_RAN"
 
+    echo "Creating macvlan interface for gNB pod"
+    kubectl -n$ns create -f /root/p4-network.yaml
+
     echo "Removing previously deployed oai-gnb pod"
     echo "Now starting : helm -n$ns install oai-gnb oai-gnb/"
     helm -n$ns install oai-gnb oai-gnb/
