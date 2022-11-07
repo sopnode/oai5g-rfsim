@@ -1,12 +1,12 @@
 apiVersion: "k8s.cni.cncf.io/v1"
 kind: NetworkAttachmentDefinition
 metadata:
-  name: p4-macvlan-${IFNAME}
+  name: p4-macvlan-gnb
 spec:
   config: '{
             "cniVersion": "0.3.0",
             "type": "macvlan",
-            "master": "${NODE_NETIF}",
+            "master": "team0",
             "mode": "bridge",
             "ipam": {
                 "type": "host-local",

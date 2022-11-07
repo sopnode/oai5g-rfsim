@@ -286,9 +286,9 @@ function init() {
     # Just in case the k8s cluster has been restarted without multus enabled..
     echo "kube-install.sh enable-multus"
     kube-install.sh enable-multus || true
-    #echo "New : kube-install.sh $ns multus-network-attachments"
-    #net_if=team0
-    #kube-install.sh multus-network-attachments $ns $net_if || true
+    #export NODE_NETIF=team0
+    #export IFNAME=gnb
+    #kubectl -n$ns create -f /root/p4-network.yaml
 }
 
 function reconfigure() {
