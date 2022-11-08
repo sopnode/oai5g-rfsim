@@ -1,17 +1,8 @@
 # OAI5G demo on SophiaNode
 
-This script aims to demonstrate how to automate a OAI5G deployment on the SophiaNode cluster
-using both FIT nodes on R2lab and classical k8s workers.
+This example is based on [OAI5G-RFSIM](https://github.com/sopnode/oai5g-rfsim) script that aims to demonstrate how to automate a OAI5G deployment on the SophiaNode cluster using both FIT nodes on R2lab and classical k8s workers. It uses the USRP N300 as a 5G radio device.
 
-In this demo, the **demo-oai.py** nepi-ng script is used to prepare 4 FIT nodes that will be used to run the following OAI5G functions developed at Eurecom:
-
-* oai-amf (*`fit01`* by default)
-* oai-spgwu (*`fit02`* by default)
-* oai-gnb (*`fit03`* by default)
-* oai-nr-ue (*`fit04`* by default)
-
-This demo does not involve actual radio transmission, all radio traffic is emulated thanks to the OAI5G RF simulator.
-
+In this demo, the **demo-oai.py** nepi-ng script is used to prepare a FIT node that will be used to run the 5G UE emulation while remaining core network and RAN functions are deployed on sopnode servers (sopnode-w2.inria.fr and sopnode.w3.inria.fr).
 
 **Acknowledgments:** _Support regarding configuration of the OAI5G functions has been provided by
 Sagar Arora at Eurecom <sagar.arora@eurecom.fr>._
