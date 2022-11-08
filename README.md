@@ -85,7 +85,7 @@ fit01$ kubectl wait pod -noai5g --for=condition=Ready --all
 # Remove previously deployed oai-gnb pod
 fit01$ GNB_POD_NAME=$(kubectl -noai5g get pods -l app.kubernetes.io/name=oai-gnb -o jsonpath="{.items[0].metadata.name}")
 fit01$ kubectl -noai5g delete pods ${GNB_POD_NAME}
-fit01$ helm uninstall oai-gnb
+fit01$ helm --namespace=oai5g uninstall oai-gnb
 
 # Run the oai-gnb pod on sopnode servers
 fit01$ cd /home/oai/oai-cn5g-fed/charts/oai-5g-ran
