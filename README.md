@@ -54,6 +54,14 @@ Then the script will get all the nodes to join the k8s master (*`sopnode-l1.inri
 It follows the configuration setup as explained in [OAI5G-RFSIM](https://github.com/sopnode/oai5g-rfsim) except that "oai-nr-ue" pod is deployed on 
 *`fit01`*. It also copies the modified values.yaml and deployment.yaml for oai-gnb pod directly at respective locations in oai-cn5g-fed directory. 
 
+```bash
+gnb.band66.tm1.106PRB.usrpn300.conf -> /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf/mounted.conf
+configmap-gnbconf.yaml -> /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/templates/configmap-gnbconf.yaml
+deployment.yaml -> /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/templates/deployment.yaml
+values.yaml -> /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/values.yaml
+```
+These are temporary files needed till Eurecom delivers new helm charts.
+
 ### Deployment
 
 Finally, the **demo-oai.py** script will deploy the OAI5G pods on the k8s cluster. However, if you prefer to do it manually, you will have to do the following directly on *fit01* (or on another k8s worker node or on the k8s master *sopnode-l1*):
