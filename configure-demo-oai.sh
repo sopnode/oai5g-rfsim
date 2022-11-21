@@ -10,6 +10,7 @@ function update() {
     regcred_password=$1; shift
     regcred_email=$1; shift
     
+    #fit_gnb='sopnode-w2.inria.fr'
 
     echo "Configuring chart $OAI5G_BASIC/values.yaml for R2lab"
     cat > /tmp/demo-oai.sed <<EOF
