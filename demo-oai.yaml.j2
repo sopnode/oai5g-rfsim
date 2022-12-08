@@ -153,11 +153,11 @@ jobs:
       - type: Run
         command: >
           rm -rf oai-cn5g-fed;
-          git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed
-	  mkdir /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf
-	  cd /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf
-	  wget https://gitlab.eurecom.fr/oai/openairinterface5g/-/blob/develop/ci-scripts/conf_files/gnb.sa.band66.fr1.106PRB.usrpn300.conf
-	  mv gnb.sa.band66.fr1.106PRB.usrpn300.conf mounted.conf
+          git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed;
+          mkdir /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf;
+          cd /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf;
+          wget https://gitlab.eurecom.fr/oai/openairinterface5g/-/raw/develop/targets/PROJECTS/GENERIC-NR-5GC/CONF/gnb.sa.band66.fr1.106PRB.usrpn300.conf;
+          mv gnb.sa.band66.fr1.106PRB.usrpn300.conf mounted.conf
       - type: Run
         command: /root/demo-oai.sh init {{namespace}}
       - type: Run

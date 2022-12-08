@@ -205,7 +205,8 @@ EOF
     echo "Configuring chart $ORIG_CHART for R2lab"
     cp "$ORIG_CHART" /tmp/"$FUNCTION"_deployment.yaml-orig
     perl -i -p0e 's/"name": "{{ .Chart.Name }}-net1",.*?"]/"name": "{{ .Chart.Name }}-net1"/s' "$ORIG_CHART"
-    perl -i -p0e 's/"env:"/volumeMounts:\n- mountPath: "/opt/oai-gnb/etc/mounted.conf"\n  name: script\n  subPath: "mounted.conf"\n"env:\n  - name: USE_VOLUMED_CONF\n    value: "yes"/s' "$ORIG_CHART"
+    perl -i -p0e 's/env:/volumeMounts:\n        - mountPath: \"\/opt\/oai-gnb\/etc\/mounted.conf\"\n          name: script\n          subPath: \"mounted.conf\"\n        env:\n          - name: USE_VOLUMED_CONF\n            value: \"yes\"/s' "$ORIG_CHART"
+    perl -i -p0e 's/volumes:/volumes:\n      - name: script \n        configMap: \n          name: {{ .Chart.Name }}-script/s' "$ORIG_CHART"
     diff /tmp/"$FUNCTION"_deployment.yaml-orig "$ORIG_CHART"
 }
 
