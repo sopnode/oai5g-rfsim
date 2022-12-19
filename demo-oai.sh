@@ -159,55 +159,16 @@ function configure-gnb() {
     DIR="$OAI5G_RAN/$FUNCTION"
     ORIG_CHART="$DIR"/values.yaml
     SED_FILE="/tmp/$FUNCTION-r2lab.sed"
+
+    # Tune values.yaml chart
     echo "Configuring chart $ORIG_CHART for R2lab"
     cat > "$SED_FILE" <<EOF
-s|repository: docker.io/oaisoftwarealliance/oai-gnb|repository: docker.io/r2labuser/oai-gnb|
-s|version: develop|version: v1.0.0|
-s|gnb: true|gnb: true|
-s|create: false|create: true|
-s|n2IPadd:.*|n2IPadd: "192.168.100.163"|
-s|n2Netmask:.*|n2Netmask: "24"|
-s|hostInterface:.*|hostInterface: "team0" # Interface of the node (sopnode-w2) on which this pod will be scheduled for N2 and N3|
-s|n3IPadd:.*|n3IPadd: "192.168.100.164"|
-s|n3Netmask:.*|n3Netmask: "24"|
-s|mnc:.*|mnc: "95"    # check the information with AMF, SMF, UPF/SPGWU|
-s|useFqdn:.*|useFqdn: "false"|
-s|amfIpAddress:.*|amfIpAddress: "192.168.100.161"  # amf ip-address or service-name|
-s|gnbNgaIfName:.*|gnbNgaIfName: "net1"  # net1 in case multus create is true that means another interface is created for ngap interface, n2 to communicate with amf|
-s|gnbNgaIpAddress:.*|gnbNgaIpAddress: "192.168.100.163" # n2IPadd in case multus create is true|
-s|gnbNguIfName:.*|gnbNguIfName: "net2"   #net2 in case multus create is true gtu interface for upf/spgwu|
-s|gnbNguIpAddress:.*|gnbNguIpAddress: "192.168.100.164" # n3IPadd in case multus create is true|
-s|useAdditionalOptions:.*|useAdditionalOptions: '--sa --usrp-args "type=n3xx, addr=192.168.100.43" --usrp-tx-thread-config 1'|
-s|volumneName|volumeName|
 s|nodeName:.*|nodeName: $node_gnb|
 EOF
-#s|useAdditionalOptions:.*|useAdditionalOptions: '--sa --usrp-args "type=n3xx, addr=192.168.100.43" --numerology 1 -r 24 --band 78 -s 516 -C 3610000000 --ue-fo-compensation --ue-rxgain 30 --ue-txgain 30 -d'|
     cp "$ORIG_CHART" /tmp/"$FUNCTION"_values.yaml-orig
     echo "(Over)writing $DIR/values.yaml"
     sed -f "$SED_FILE" < /tmp/"$FUNCTION"_values.yaml-orig > "$ORIG_CHART"
     diff /tmp/"$FUNCTION"_values.yaml-orig "$ORIG_CHART"
-
-    
-    echo "Adding configmap-gnb.yaml for R2lab"
-    CONFIGMAP="/tmp/configmap-gnb-conf.yaml"
-    cat > "$CONFIGMAP"<<EOF
-apiVersion: v1
-kind: ConfigMap
-metadata:
-   name: {{ .Chart.Name }}-script
-data:
-   {{ (.Files.Glob "conf/mounted.conf").AsConfig | indent 2 | trim }}
-EOF
-    cp "$CONFIGMAP" "$DIR"/templates/
-
-
-    ORIG_CHART="$DIR"/templates/deployment.yaml
-    echo "Configuring chart $ORIG_CHART for R2lab"
-    cp "$ORIG_CHART" /tmp/"$FUNCTION"_deployment.yaml-orig
-    perl -i -p0e 's/"name": "{{ .Chart.Name }}-net1",.*?"]/"name": "{{ .Chart.Name }}-net1"/s' "$ORIG_CHART"
-    perl -i -p0e 's/env:/volumeMounts:\n        - mountPath: \"\/opt\/oai-gnb\/etc\/mounted.conf\"\n          name: script\n          subPath: \"mounted.conf\"\n        env:\n          - name: USE_VOLUMED_CONF\n            value: \"yes\"/s' "$ORIG_CHART"
-    perl -i -p0e 's/volumes:/volumes:\n      - name: script \n        configMap: \n          name: {{ .Chart.Name }}-script/s' "$ORIG_CHART"
-    diff /tmp/"$FUNCTION"_deployment.yaml-orig "$ORIG_CHART"
 }
 
 

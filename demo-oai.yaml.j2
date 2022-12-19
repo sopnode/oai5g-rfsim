@@ -152,12 +152,22 @@ jobs:
         command: /root/configure-demo-oai.sh update {{namespace}} {{nodes['spgwu']}} {{nodes['gnb']}} {%for x in regcred.values()%}{{x}} {%endfor %}
       - type: Run
         command: >
+          mkdir gnb-config;
           rm -rf oai-cn5g-fed;
           git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed;
           mkdir /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf;
-          cd /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf;
-          wget https://gitlab.eurecom.fr/oai/openairinterface5g/-/raw/develop/targets/PROJECTS/GENERIC-NR-5GC/CONF/gnb.sa.band66.fr1.106PRB.usrpn300.conf;
-          mv gnb.sa.band66.fr1.106PRB.usrpn300.conf mounted.conf
+      - type: Push
+        localpaths: gnb-config/values.yaml
+        remotepath: /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/
+      - type: Push
+        localpaths: gnb-config/mounted.conf
+        remotepath: /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf/
+      - type: Push
+        localpaths:
+          - gnb-config/configmap.yaml
+          - gnb-config/deployment.yaml
+          - gnb-config/multus.yaml
+        remotepath: /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/templates/
       - type: Run
         command: /root/demo-oai.sh init {{namespace}}
       - type: Run
