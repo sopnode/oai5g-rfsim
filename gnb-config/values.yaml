@@ -7,7 +7,7 @@ replicaCount: 1
 nfimage:   # image name either locally present or in a public/private repository
   registry: local
   repository: docker.io/r2labuser/oai-gnb           ## dockerhub oaisoftwarealliance/oai-gnb  
-  version: v1.0.0 # image tag
+  version: v1.0.1 # image tag
   # pullPolicy: IfNotPresent or Never or Always
   pullPolicy: IfNotPresent
 
@@ -51,7 +51,7 @@ service:
   x2cPort: 36422 
 
 start:
-  gnb: false
+  gnb: true
   tcpdump: false
 
 # gNB needs two seperate interface one for ngap (N2) and other one for gtpu (N3) 
