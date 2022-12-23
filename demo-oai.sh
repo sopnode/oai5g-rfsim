@@ -270,6 +270,12 @@ function init() {
     SED_FILE="/tmp/gnb_conf.sed"
     cat > "$SED_FILE" <<EOF
 s|sst =.*|sst = 1; sd = 0x1; }) });|
+s|mnc = 99;|mnc = 95;|
+s|ipv4       =.*|ipv4       = "192.168.100.161";|
+s|GNB_INTERFACE_NAME_FOR_NG_AMF.*|GNB_INTERFACE_NAME_FOR_NG_AMF            = "net1";
+s|GNB_IPV4_ADDRESS_FOR_NG_AMF.*|GNB_IPV4_ADDRESS_FOR_NG_AMF              = "192.168.100.163/24";
+s|GNB_INTERFACE_NAME_FOR_NGU.*|GNB_INTERFACE_NAME_FOR_NGU               = "net2";
+s|GNB_IPV4_ADDRESS_FOR_NGU.*|GNB_IPV4_ADDRESS_FOR_NGU                 = "192.168.100.164/24";
 s|sdr_addrs =.*||
 EOF
     cp "$DIR_DEST"/mounted.conf /tmp/mounted.conf
@@ -277,7 +283,7 @@ EOF
 
     # add SDR IP ADDRESSES
     if [[ "$rru" == "n300" || "$rru" == "n320" ]] ; then
-	perl -i -p0e "s/#clock_src = \"internal\";/#clock_src = \"internal\";\n         sdr_addrs = \"$SDR_ADDRS;clock_source=internal,time_source=internal\";/s" "$DIR_DEST"/mounted.conf
+	perl -i -p0e "s/#clock_src = \"internal\";/#clock_src = \"internal\";\n  sdr_addrs = \"$SDR_ADDRS;clock_source=internal,time_source=internal\";/s" "$DIR_DEST"/mounted.conf
     else
 	SED_FILE="/tmp/aw2s_conf.sed"
 	cat > "$SED_FILE" <<EOF
