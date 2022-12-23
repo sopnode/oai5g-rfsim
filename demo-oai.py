@@ -88,19 +88,22 @@ def run(*, mode, gateway, slicename,
     )
 
     if rru == "n300" or rru == "n320":
-        gnb_charts=dict(
-            configmap="/root/oai5g-rfsim/gnb-config/configmap-n3xx.yaml",
-            deployment="/root/oai5g-rfsim/gnb-config/deployment-n3xx.yaml",
-            multus="/root/oai5g-rfsim/gnb-config/multus-n3xx.yaml",
-            values="/root/oai5g-rfsim/gnb-config/values-n3xx.yaml",
-        ),
+        configmap = '/root/oai5g-rfsim/gnb-config/configmap-n3xx.yaml'
+        deployment = '/root/oai5g-rfsim/gnb-config/deployment-n3xx.yaml'
+        multus = '/root/oai5g-rfsim/gnb-config/multus-n3xx.yaml'
+        values= '/root/oai5g-rfsim/gnb-config/values-n3xx.yaml'
     else:
-        gnb_charts=dict(
-            configmap="/root/oai5g-rfsim/gnb-config/configmap-aw2s.yaml",
-            deployment="/root/oai5g-rfsim/gnb-config/deployment-aw2s.yaml",
-            multus="/root/oai5g-rfsim/gnb-config/multus-aw2s.yaml",
-            values="/root/oai5g-rfsim/gnb-config/values-aw2s.yaml",
-        ),
+        configmap = '/root/oai5g-rfsim/gnb-config/configmap-aw2s.yaml'
+        deployment = '/root/oai5g-rfsim/gnb-config/deployment-aw2s.yaml'
+        multus = '/root/oai5g-rfsim/gnb-config/multus-aw2s.yaml'
+        values = '/root/oai5g-rfsim/gnb-config/values-aw2s.yaml'
+
+    gnb_charts = {
+        'configmap': configmap,
+        'status': deployment,
+        'multus': multus,
+        'values': values,
+    }
 
     jinja_variables = dict(
         gateway=gateway,

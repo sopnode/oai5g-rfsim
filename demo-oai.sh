@@ -242,7 +242,7 @@ function init() {
     echo "Configuring gNB conf for $rru"
     DIR_ORIG="/root/oai5g-rfsim/gnb-config/originals/"
     DIR_DEST="/root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf/"
-    if [ "$rru" == "n300" || "$rru" == "n320" ] ; then
+    if [[ "$rru" == "n300" || "$rru" == "n320" ]]; then
 	CONF_ORIG="$DIR_ORIG/$CONF_N3XX"
 	REPO_GNB="$REPO_GNB_N3XX"
 	V_REPO_GNB="$V_REPO_GNB_N3XX"
@@ -252,7 +252,7 @@ function init() {
 	elif [ "$rru" == "n320" ] ; then
 	   SDR_ADDRS="$ADDRS_N300"
 	fi
-    elif [ "$rru" == "jaguar" ||  "$rru" == "panther" ] ; then
+    elif [[ "$rru" == "jaguar" || "$rru" == "panther" ]]; then
 	CONF_ORIG="$DIR_ORIG/$CONF_AW2S"
 	REPO_GNB="$REPO_GNB_AW2S"
 	V_REPO_GNB="$V_REPO_GNB_AW2S"
