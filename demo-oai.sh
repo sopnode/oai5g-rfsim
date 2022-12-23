@@ -267,9 +267,15 @@ function init() {
 	usage
     fi
     # add NSSAI sd info for PLMN and sdr_addrs for RUs 
-    sed s/sst = 1;/sst = 1; sd = 0x1;/g "$DIR_DEST"/mounted.conf
+    SED_FILE="/tmp/gnb_conf.sed"
+    cat > "$SED_FILE" <<EOF
+s|sst = 1;|sst = 1; sd = 0x1;|
+EOF
+    cp "$DIR_DEST"/mounted.conf /tmp/mounted.conf
+    sed -f "$SED_FILE" < /tmp/mounted.conf > "$DIR_DEST"/mounted.conf
+
     # add SDR IP ADDRESSES
-    if [ "$rru" == "n300" || "$rru" == "n320" ] ; then
+    if [[ "$rru" == "n300" || "$rru" == "n320" ]] ; then
 	perl -i -p0e "s/\"internal\";/\"internal\";\n         sdr_addrs = $SDR_ADDRS;/s" "$DIR_DEST"/mounted.conf
     else
 	SED_FILE="/tmp/aw2s_conf.sed"
@@ -279,7 +285,7 @@ s|remote_address.*|remote_address = "$LOC_ADDR_AW2S"|
 s|local_address.*|local_address = "$ADDR_AW2S"|
 EOF
 	cp "$DIR_DEST"/mounted.conf /tmp/mounted.conf
-	sed -f "$SED_FILE" < /tmp/mounted.conf > "$DIR_DEST"	
+	sed -f "$SED_FILE" < /tmp/mounted.conf > "$DIR_DEST"/mounted.conf
     fi
     # show changes applied to default conf
     echo "Following changes applied to $CONF_ORIG"
