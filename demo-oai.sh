@@ -291,9 +291,7 @@ EOF
     # show changes applied to default conf
     echo "Following changes applied to $CONF_ORIG"
     diff "$DIR_DEST"/mounted.conf "$CONF_ORIG"
-
-    # Configure the right gnb conf file and charts according to rru selected
-    # if usrp -> configure n3xx IP addresses and gnb usrp docker image, sfp1/2 multus info, use AdditionalOptions in values.yaml, cp right.conf to mounted.conf and apply IP @
+    exit 0 # don't know why it returns 1 otherwise...
 }
 
 function reconfigure() {
