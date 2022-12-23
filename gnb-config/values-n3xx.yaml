@@ -6,10 +6,8 @@ replicaCount: 1
 
 nfimage:   # image name either locally present or in a public/private repository
   registry: local
-#  repository: docker.io/r2labuser/oai-gnb-aw2s
-#  version: v1.0.0 # image tag
   repository: docker.io/r2labuser/oai-gnb           ## dockerhub oaisoftwarealliance/oai-gnb  
-  version: v1.0.1 # image tag
+  version: latest # image tag
   # pullPolicy: IfNotPresent or Never or Always
   pullPolicy: IfNotPresent
 
