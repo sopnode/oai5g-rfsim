@@ -7,12 +7,12 @@ DEF_NODE_GNB="sopnode-w2.inria.fr"
 DEF_RRU="n300"
 
 # IP addresses of RRU devices
-ADDRS_N300= "addr=192.168.10.129,second_addr=192.168.20.129,mgmt_addr=192.168.3.151"
-ADDRS_N320= "addr=192.168.10.130,second_addr=192.168.20.130,mgmt_addr=192.168.3.152"
+ADDRS_N300="addr=192.168.10.129,second_addr=192.168.20.129,mgmt_addr=192.168.3.151"
+ADDRS_N320="addr=192.168.10.130,second_addr=192.168.20.130,mgmt_addr=192.168.3.152"
 LOC_IF_NAME_AW2S="team0"
-LOC_ADDR_AW2S=""
-ADDR_JAGUAR=""
-ADDR_PANTHER=""
+LOC_ADDR_AW2S="TBD"
+ADDR_JAGUAR="TBD"
+ADDR_PANTHER="TBD"
 
 # gNB conf file for RRU devices
 CONF_AW2S="gnb.sa-rru-50MHz-2x2.conf"
