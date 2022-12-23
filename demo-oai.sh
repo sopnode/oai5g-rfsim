@@ -269,7 +269,7 @@ function init() {
     # add NSSAI sd info for PLMN and sdr_addrs for RUs 
     SED_FILE="/tmp/gnb_conf.sed"
     cat > "$SED_FILE" <<EOF
-s|sst = 1;|sst = 1; sd = 0x1;|
+s|sst =.*|sst = 1; sd = 0x1; }) });|
 EOF
     cp "$DIR_DEST"/mounted.conf /tmp/mounted.conf
     sed -f "$SED_FILE" < /tmp/mounted.conf > "$DIR_DEST"/mounted.conf
