@@ -3,7 +3,10 @@
 # {{leader}} - typically 'sopnode-l1.inria.fr'
 # {{namespace}} - typically 'oai5g'
 # {{nodes}} - typically {'k8s_fit': 'fit01', 'spgwu': 'sopnode-w3.inria.fr', 'gnb' : 'sopnode-w2.inria.fr'}
-# {{quectel_nodes}} - typically {'9': 'fit09', '18': 'fit18}
+# {{quectel_nodes}} - typically {'9': 'fit09', '18': 'fit18'}
+# {{gnb_charts}} - typically {'configmap':'','deployment':'', 'multus':'', 'values':''}
+# {{rru}} - typically 'n300' or 'n320' or 'jaguar' or 'panther'
+# {{n3xx}} - typically 'True' or 'False'
 # {{regcred}} - typically {'name': 'jdoe', 'password': 'XX', 'email': 'jdoe@yahoo.fr'}
 # {{image}} - typically 'kubernetes'
 # {{quectel_image}} - typically 'quectel-wwan0'
@@ -50,6 +53,9 @@ jobs:
       - type: Run
         command: >
           rhubarbe wait {{nodes['k8s_fit']}}
+      - type: Run
+        command: >
+          rhubarbe script on-{{rru}}
 
   {% if quectel_dict %}
   - id: prepare-quectels
@@ -137,37 +143,25 @@ jobs:
     critical: True
     verbose: {{verbose}}
     label: >
-      Push demo-oai.sh script on {{nodes.k8s_fit}},
-      clone oai-cn5g-fed, apply patches,
+      Clone oai5g-rfsim, configure demo-oai.sh script on {{nodes.k8s_fit}},
+      clone oai-cn5g-fed, apply patches for SophiaNode R2lab environment,
       and run the k8s demo-oai script from {{nodes.k8s_fit}}
     commands:
-      - type: Push
-        localpaths:
-          - demo-oai.sh
-          - configure-demo-oai.sh
-        remotepath: /root/
-      - type: Run
-        command: chmod a+x demo-oai.sh configure-demo-oai.sh
-      - type: Run
-        command: /root/configure-demo-oai.sh update {{namespace}} {{nodes['spgwu']}} {{nodes['gnb']}} {%for x in regcred.values()%}{{x}} {%endfor %}
       - type: Run
         command: >
-          mkdir gnb-config;
+          rm -rf oai5g-rfsim;
+          git clone https://github.com/sopnode/oai5g-rfsim.git;
+          cp oai5g-rfsim/demo-oai.sh /root/;
+          cp oai5g-rfsim/configure-demo /root/;
+          /root/configure-demo-oai.sh update {{namespace}} {{nodes['spgwu']}} {{nodes['gnb']}} {%for x in regcred.values()%}{{x}} {%endfor %};
           rm -rf oai-cn5g-fed;
           git clone -b master https://gitlab.eurecom.fr/oai/cn5g/oai-cn5g-fed;
           mkdir /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf;
-      - type: Push
-        localpaths: gnb-config/values.yaml
-        remotepath: /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/
-      - type: Push
-        localpaths: gnb-config/mounted.conf
-        remotepath: /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf/
-      - type: Push
-        localpaths:
-          - gnb-config/configmap.yaml
-          - gnb-config/deployment.yaml
-          - gnb-config/multus.yaml
-        remotepath: /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/templates/
+          cp {{gnb_charts.configmap}} /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/templates/configmap.yaml;
+          cp {{gnb_charts.deployment}} /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/templates/deployment.yaml;
+          cp {{gnb_charts.multus}} /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/templates/multus.yaml;
+          cp {{gnb_charts.values}} /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/values.yaml;
+          cp /root/oai5g-rfsim/gnb-config/mounted.conf /root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf/;
       - type: Run
         command: /root/demo-oai.sh init {{namespace}}
       - type: Run
@@ -253,6 +247,9 @@ jobs:
     critical: False
     verbose: {{verbose}}
     commands:
+      - type: Run
+        command: >
+          rhubarbe script off-{{rru}}
       - type: Run
         command: rhubarbe off {{nodes['k8s_fit']}}
 

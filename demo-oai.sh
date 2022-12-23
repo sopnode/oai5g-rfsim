@@ -4,6 +4,19 @@
 DEF_NS="oai5g"
 DEF_NODE_SPGWU="sopnode-w3.inria.fr"
 DEF_NODE_GNB="sopnode-w2.inria.fr"
+DEF_RRU="n300"
+
+# IP addresses of RRU devices
+ADDRS_N300= "addr=192.168.10.129,second_addr=192.168.20.129,mgmt_addr=192.168.3.151"
+ADDRS_N320= "addr=192.168.10.130,second_addr=192.168.20.130,mgmt_addr=192.168.3.152"
+LOC_IF_NAME_AW2S="team0"
+LOC_ADDR_AW2S=""
+ADDR_JAGUAR=""
+ADDR_PANTHER=""
+
+# gNB conf file for RRU devices
+CONF_AW2S="gnb.sa-rru-50MHz-2x2.conf"
+CONF_N3XX="gnb.sa.band66.fr1.106PRB.usrpn300.conf"
 
 OAI5G_CHARTS="$HOME"/oai-cn5g-fed/charts
 OAI5G_CORE="$OAI5G_CHARTS"/oai-5g-core
@@ -13,7 +26,7 @@ OAI5G_RAN="$OAI5G_CHARTS"/oai-5g-ran
 
 function usage() {
     echo "USAGE:"
-    echo "demo-oai.sh init [namespace] |"
+    echo "demo-oai.sh init [namespace rru] |"
     echo "            start [namespace node_spgwu node_gnb] |"
     echo "            stop [namespace] |"
     echo "            configure-all [node_spgwu node_gnb] |"
@@ -36,7 +49,7 @@ s|n1IPadd:.*|n1IPadd: "192.168.100.161"|
 s|n1Netmask:.*|n1Netmask: "24"|
 s|hostInterface:.*|hostInterface: "team0" # interface of the node (sopnode-w3) running amf pod for N2|
 s|amfInterfaceNameForNGAP: "eth0" # If multus creation is true then net1 else eth0|amfInterfaceNameForNGAP: "net1" # If multus creation is true then net1 else eth0|
-s|mnc: "99"|mnc: "95"|
+s|mnc: "99".*|mnc: "95"|
 s|servedGuamiMnc0: "99"|servedGuamiMnc0: "95"|
 s|plmnSupportMnc: "99"|plmnSupportMnc: "95"|
 s|operatorKey:.*|operatorKey: "8e27b6af0e692e750f32667a3b14605d"  # should be same as in subscriber database|  
@@ -47,6 +60,18 @@ s|sgwS1uIf: "eth0"  # n3 interface, net1 if gNB is outside the cluster network a
 s|pgwSgiIf: "eth0"  # net1 if gNB is outside the cluster network and multus creation is true else eth0 (important because it sends the traffic towards internet)|pgwSgiIf: "eth0"  # net1 if gNB is outside the cluster network and multus creation is true else eth0 (important because it sends the traffic towards internet)|
 s|dnsIpv4Address: "172.21.3.100" # configure the dns for UE don't use Kubernetes DNS|dnsIpv4Address: "138.96.0.210" # configure the dns for UE don't use Kubernetes DNS|
 s|dnsSecIpv4Address: "172.21.3.100" # configure the dns for UE don't use Kubernetes DNS|dnsSecIpv4Address: "193.51.196.138" # configure the dns for UE don't use Kubernetes DNS|
+s|sst0:.*|sst0: "1"|
+s|sd0:.*|sd0: "1"|
+s|sst1:.*|sst1: "1"|
+s|sd1:.*|sd1: "10203"|
+s|sst2:.*|sst2: "4"|
+s|sd2:.*|sd2: "4"|
+s|nssaiSst0:.*|nssaiSst0: 1|
+s|nssaiSd0:.*|nssaiSd0: 1|
+s|nssaiSst1:.*|nssaiSst1: 1|
+s|nssaiSd1:.*|nssaiSd1: 10203|
+s|nssaiSst2:.*|nssaiSst2: 4|
+s|nssaiSd2:.*|nssaiSd2: 4|
 EOF
 
     cp "$OAI5G_BASIC"/values.yaml /tmp/basic_values.yaml-orig
@@ -193,6 +218,8 @@ function configure-all() {
 function init() {
     ns=$1
     shift
+    rru=$1
+    shift
 
     # init function should be run once per demo.
     echo "init: ensure spray is installed and possibly create secret docker-registry"
@@ -210,6 +237,56 @@ function init() {
     # Just in case the k8s cluster has been restarted without multus enabled..
     echo "kube-install.sh enable-multus"
     kube-install.sh enable-multus || true
+
+    # Configure gnb conf file
+    echo "Configuring gNB conf for $rru"
+    DIR_ORIG="/root/oai5g-rfsim/gnb-config/originals/"
+    DIR_DEST="/root/oai-cn5g-fed/charts/oai-5g-ran/oai-gnb/conf/"
+    if [ "$rru" == "n300" || "$rru" == "n320" ] ; then
+	CONF_ORIG="$DIR_ORIG/$CONF_N3XX"
+	REPO_GNB="$REPO_GNB_N3XX"
+	V_REPO_GNB="$V_REPO_GNB_N3XX"
+	cp "$CONF_ORIG" "$DIR_DEST"/mounted.conf
+	if [ "$rru" == "n300" ] ; then
+	   SDR_ADDRS="$ADDRS_N300"
+	elif [ "$rru" == "n320" ] ; then
+	   SDR_ADDRS="$ADDRS_N300"
+	fi
+    elif [ "$rru" == "jaguar" ||  "$rru" == "panther" ] ; then
+	CONF_ORIG="$DIR_ORIG/$CONF_AW2S"
+	REPO_GNB="$REPO_GNB_AW2S"
+	V_REPO_GNB="$V_REPO_GNB_AW2S"
+	cp "$CONF_ORIG" "$DIR_DEST"/mounted.conf
+	if [ "$rru" == "jaguar" ] ; then
+	    ADDR_AW2S="$ADDR_JAGUAR"
+	elif [ "$rru" == "panther" ] ; then
+	    ADDR_AW2S="$ADDR_PANTHER"
+	fi
+    else
+	echo "Unknown rru selected: $rru"
+	usage
+    fi
+    # add NSSAI sd info for PLMN and sdr_addrs for RUs 
+    sed s/sst = 1;/sst = 1; sd = 0x1;/g "$DIR_DEST"/mounted.conf
+    # add SDR IP ADDRESSES
+    if [ "$rru" == "n300" || "$rru" == "n320" ] ; then
+	perl -i -p0e "s/\"internal\";/\"internal\";\n         sdr_addrs = $SDR_ADDRS;/s" "$DIR_DEST"/mounted.conf
+    else
+	SED_FILE="/tmp/aw2s_conf.sed"
+	cat > "$SED_FILE" <<EOF
+s|local_if_name.*|local_if_name  = "$LOC_IF_NAME_AW2S"|
+s|remote_address.*|remote_address = "$LOC_ADDR_AW2S"|
+s|local_address.*|local_address = "$ADDR_AW2S"|
+EOF
+	cp "$DIR_DEST"/mounted.conf /tmp/mounted.conf
+	sed -f "$SED_FILE" < /tmp/mounted.conf > "$DIR_DEST"	
+    fi
+    # show changes applied to default conf
+    echo "Following changes applied to $CONF_ORIG"
+    diff "$DIR_DEST"/mounted.conf "$CONF_ORIG"
+
+    # Configure the right gnb conf file and charts according to rru selected
+    # if usrp -> configure n3xx IP addresses and gnb usrp docker image, sfp1/2 multus info, use AdditionalOptions in values.yaml, cp right.conf to mounted.conf and apply IP @
 }
 
 function reconfigure() {
@@ -342,8 +419,10 @@ if test $# -lt 1; then
     usage
 else
     if [ "$1" == "init" ]; then
-        if test $# -eq 2; then
-            init $2
+        if test $# -eq 3; then
+            init $2 $3
+        elif test $# -eq 1; then
+	    init $DEF_NS $DEF_RRU
         else
             usage
         fi

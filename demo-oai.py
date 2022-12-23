@@ -45,6 +45,7 @@ default_k8s_fit = 1
 default_spgwu = 'sopnode-w3.inria.fr'
 default_gnb = 'sopnode-w2.inria.fr'
 default_quectel_nodes = []
+default_rru = 'n300'
 
 default_gateway  = 'faraday.inria.fr'
 default_slicename  = 'inria_sopnode'
@@ -57,7 +58,7 @@ default_regcred_email = 'r2labuser@turletti.com'
 
 def run(*, mode, gateway, slicename,
         leader, namespace, auto_start, load_images,
-        k8s_reset, k8s_fit, spgwu, gnb, quectel_nodes,
+        k8s_reset, k8s_fit, spgwu, gnb, quectel_nodes, rru,
         regcred_name, regcred_password, regcred_email,
         image, quectel_image, verbose, dry_run):
     """
@@ -70,6 +71,7 @@ def run(*, mode, gateway, slicename,
         spgwu: node name in which spgwu-tiny will be deployed
         gnb: node name in which oai-gnb will be deployed
         quectel_nodes: list of indices of quectel UE nodes to use
+        rru: hardware device attached to gNB
         image: R2lab k8s image name
     """
 
@@ -85,6 +87,21 @@ def run(*, mode, gateway, slicename,
         verbose=verbose,
     )
 
+    if rru == "n300" or rru == "n320":
+        gnb_charts=dict(
+            configmap="/root/oai5g-rfsim/gnb-config/configmap-n3xx.yaml",
+            deployment="/root/oai5g-rfsim/gnb-config/deployment-n3xx.yaml",
+            multus="/root/oai5g-rfsim/gnb-config/multus-n3xx.yaml",
+            values="/root/oai5g-rfsim/gnb-config/values-n3xx.yaml",
+        ),
+    else:
+        gnb_charts=dict(
+            configmap="/root/oai5g-rfsim/gnb-config/configmap-aw2s.yaml",
+            deployment="/root/oai5g-rfsim/gnb-config/deployment-aw2s.yaml",
+            multus="/root/oai5g-rfsim/gnb-config/multus-aw2s.yaml",
+            values="/root/oai5g-rfsim/gnb-config/values-aw2s.yaml",
+        ),
+
     jinja_variables = dict(
         gateway=gateway,
         leader=leader,
@@ -95,6 +112,8 @@ def run(*, mode, gateway, slicename,
             gnb=gnb,
         ),
         quectel_dict=quectel_dict,
+        gnb_charts=gnb_charts,
+        rru=rru,
         regcred=dict(
             name=regcred_name,
             password=regcred_password,
@@ -333,6 +352,13 @@ def main():
 	action=ListOfChoices,
 	help="specify as many node ids with Quectel UEs as you want.")
 
+    parser.add_argument(
+        "-R", "--rru", dest='rru',
+        default=default_rru,
+        choices=["n300", "n320", "jaguar", "panther"],
+	action=ListOfChoices,
+	help="specify the hardware RRU to use for gNB.")
+
     parser.add_argument("-v", "--verbose", default=False,
                         action='store_true', dest='verbose',
                         help="run script in verbose mode")
@@ -367,7 +393,7 @@ def main():
         print(f"the following nodes will be used:")
         print(f"\t{r2lab_hostname(args.k8s_fit)} as k8s worker node")
         print(f"\t{args.spgwu} for oai-spgwu-tiny")
-        print(f"\t{args.gnb} for oai-gnb")
+        print(f"\t{args.gnb} for oai-gnb attached to {args.rru} as RRU hardware device")
         print(f"FIT image loading:",
               f"YES with {args.image}" if args.load_images
               else "NO (use --load-images if needed)")
@@ -380,7 +406,7 @@ def main():
         leader=args.leader, namespace=args.namespace,
         auto_start=args.auto_start, load_images=args.load_images,
         k8s_fit=args.k8s_fit, spgwu=args.spgwu, gnb=args.gnb,
-        quectel_nodes=args.quectel_nodes,
+        quectel_nodes=args.quectel_nodes, rru=args.rru,
         regcred_name=args.regcred_name,
         regcred_password=args.regcred_password,
         regcred_email=args.regcred_email,
