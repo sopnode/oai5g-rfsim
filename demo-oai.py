@@ -100,7 +100,7 @@ def run(*, mode, gateway, slicename,
 
     gnb_charts = {
         'configmap': configmap,
-        'status': deployment,
+        'deployment': deployment,
         'multus': multus,
         'values': values,
     }
