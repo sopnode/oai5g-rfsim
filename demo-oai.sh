@@ -270,13 +270,14 @@ function init() {
     SED_FILE="/tmp/gnb_conf.sed"
     cat > "$SED_FILE" <<EOF
 s|sst =.*|sst = 1; sd = 0x1; }) });|
+s|sdr_addrs =.*||
 EOF
     cp "$DIR_DEST"/mounted.conf /tmp/mounted.conf
     sed -f "$SED_FILE" < /tmp/mounted.conf > "$DIR_DEST"/mounted.conf
 
     # add SDR IP ADDRESSES
     if [[ "$rru" == "n300" || "$rru" == "n320" ]] ; then
-	perl -i -p0e "s/\"internal\";/\"internal\";\n         sdr_addrs = $SDR_ADDRS;/s" "$DIR_DEST"/mounted.conf
+	perl -i -p0e "s/#clock_src = \"internal\";/#clock_src = \"internal\";\n         sdr_addrs = \"$SDR_ADDRS;clock_source=internal,time_source=internal\";/s" "$DIR_DEST"/mounted.conf
     else
 	SED_FILE="/tmp/aw2s_conf.sed"
 	cat > "$SED_FILE" <<EOF
